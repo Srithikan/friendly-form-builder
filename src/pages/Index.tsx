@@ -16,8 +16,8 @@ const Index = () => {
   const [showRange, setShowRange] = useState(false);
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
-  const [numericValue, setNumericValue] = useState("");
-  const [stepValue, setStepValue] = useState("");
+  const [numericValue, setNumericValue] = useState("1");
+  const [stepValue, setStepValue] = useState("1");
   const [records, setRecords] = useState<string[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [error, setError] = useState("");
@@ -96,7 +96,31 @@ const Index = () => {
     newRecords.push(`GT-${totalValue}`);
 
     setRecords((prev) => [...prev, ...newRecords]);
-    setNumericValue("");
+    setNumericValue("1");
+    if (showRange) {
+      setShowRange(false);
+      setEndRange("");
+      setStepValue("1");
+      setStartRange("");
+    }
+    // Note: I am also clearing startRange if it was a range input, 
+    // to ensure a clean slate for the next 'No' (single) input. 
+    // If user was in single mode (showRange false), startRange is NOT cleared by this specific block, 
+    // preserving typical behaviors unless I decide to clear it always.
+    // However, to be consistent with 'closing', I'll clear fields used in that mode.
+    // Actually, let's just clear startRange always if that's desired? 
+    // Previous code didn't clear startRange. 
+    // If I switch from Range -> Single, I probably want to clear Start too.
+    // If I am in Single, I stay in Single.
+    // Let's refine the logic to match "close the count".
+
+    // Simpler approach requested by thought process:
+    setShowRange(false);
+    setEndRange("");
+    setStepValue("");
+    // setStartRange(""); // Optional, but let's leave it to keep previous behavior for single mode?
+    // If I leave startRange, and switch to single mode, it's fine.
+
     setError("");
   };
 
@@ -111,7 +135,8 @@ const Index = () => {
     setSelectedIndices(new Set());
     setStartRange("");
     setEndRange("");
-    setNumericValue("");
+    setNumericValue("1");
+    setStepValue("1");
     setError("");
   };
 
@@ -191,13 +216,6 @@ const Index = () => {
             />
           </div>
 
-          <Button
-            variant={showRange ? "default" : "outline"}
-            onClick={() => setShowRange(!showRange)}
-            className="shrink-0"
-          >
-            Count
-          </Button>
         </div>
 
         {/* Row 2: Start Range - End Range - Value */}
@@ -236,7 +254,7 @@ const Index = () => {
 
               <div className="w-24 space-y-1">
                 <label htmlFor="stepValue" className="form-label">
-                  Point
+                  &nbsp;
                 </label>
                 <input
                   id="stepValue"
@@ -267,13 +285,22 @@ const Index = () => {
             />
           </div>
 
-          <Button
-            className="mb-0.5 shrink-0"
-            onClick={handleAddRecord}
-            aria-label="Enter Value"
-          >
-            Ok
-          </Button>
+          <div className="flex flex-col gap-2 shrink-0 ml-auto">
+            <Button
+              variant={showRange ? "default" : "secondary"}
+              onClick={() => setShowRange(!showRange)}
+              className={`h-10 w-24 font-bold ${showRange ? "bg-purple-600 hover:bg-purple-700" : "bg-blue-600 hover:bg-blue-700 text-white"}`}
+            >
+              Pointer
+            </Button>
+            <Button
+              className="h-10 w-24 bg-blue-600 hover:bg-blue-700"
+              onClick={handleAddRecord}
+              aria-label="Enter Value"
+            >
+              Ok
+            </Button>
+          </div>
         </div>
 
         {error && (
