@@ -482,9 +482,9 @@ const Index = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2 shrink-0 ml-auto">
+          <div className="flex flex-col gap-2 shrink-0 ml-auto items-end">
             <Button
-              className={`h-10 bg-indigo-600 hover:bg-indigo-700 font-bold`}
+              className={`h-10 bg-indigo-600 hover:bg-indigo-700 font-bold w-16`}
               onClick={handleAll}
               aria-label="Add All"
             >
@@ -493,11 +493,18 @@ const Index = () => {
             <Button
               variant={showRange ? "default" : "secondary"}
               onClick={() => setShowRange(!showRange)}
-              className={`h-10 font-bold ${showRange ? "w-16 bg-purple-600 hover:bg-purple-700 text-xs" : "w-24 bg-blue-600 hover:bg-blue-700 text-white"}`}
+              className={`h-10 font-bold w-16 ${showRange ? "bg-purple-600 hover:bg-purple-700 text-[10px]" : "bg-blue-600 hover:bg-blue-700 text-xs text-white"}`}
             >
               Pointer
             </Button>
             <div className="flex gap-2">
+              <Button
+                className={`h-10 bg-emerald-600 hover:bg-emerald-700 w-16`}
+                onClick={handleAddRecord}
+                aria-label="Enter Value"
+              >
+                Ok
+              </Button>
               {!showRange && (
                 <Button
                   className={`h-10 bg-amber-600 hover:bg-amber-700 w-16`}
@@ -507,13 +514,6 @@ const Index = () => {
                   Box
                 </Button>
               )}
-              <Button
-                className={`h-10 bg-emerald-600 hover:bg-emerald-700 w-16`}
-                onClick={handleAddRecord}
-                aria-label="Enter Value"
-              >
-                Ok
-              </Button>
             </div>
           </div>
         </div>
