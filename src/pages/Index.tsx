@@ -127,6 +127,63 @@ const Index = () => {
     setError("");
   };
 
+
+  const getPermutations = (str: string): string[] => {
+    if (str.length <= 1) return [str];
+    const results: string[] = [];
+    for (let i = 0; i < str.length; i++) {
+      const char = str[i];
+      const remainingChars = str.slice(0, i) + str.slice(i + 1);
+      const remainingPermutations = getPermutations(remainingChars);
+      for (const permutation of remainingPermutations) {
+        results.push(char + permutation);
+      }
+    }
+    return [...new Set(results)]; // Return unique permutations
+  };
+
+  const handleBox = () => {
+    if (!startRange || !numericValue) {
+      setError("Please enter No (Start) and Count");
+      return;
+    }
+
+    const perms = getPermutations(startRange);
+    const newRecords: string[] = [];
+
+    for (const p of perms) {
+      newRecords.push(`${selectedOption}-${p}-${numericValue}`);
+    }
+
+    setRecords((prev) => {
+      // 1. Remove any existing GT rows
+      const cleanPrev = prev.filter((r) => !r.startsWith("GT-"));
+      // 2. Combine
+      const allDataRecords = [...cleanPrev, ...newRecords];
+
+      // 3. Calculate total
+      let totalSum = 0;
+      for (const record of allDataRecords) {
+        const parts = record.split("-");
+        const val = parseInt(parts[2], 10) || 0;
+        totalSum += val;
+      }
+
+      // 4. Append GT
+      return [...allDataRecords, `GT-${totalSum}`];
+    });
+
+    // Clear inputs similar to Add Record
+    setNumericValue("1");
+    setStartRange("");
+    if (showRange) {
+      setShowRange(false);
+      setEndRange("");
+      setStepValue("1");
+    }
+    setError("");
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleAddRecord();
@@ -301,13 +358,22 @@ const Index = () => {
             >
               Pointer
             </Button>
-            <Button
-              className={`h-10 bg-blue-600 hover:bg-blue-700 ${showRange ? "w-16" : "w-24"}`}
-              onClick={handleAddRecord}
-              aria-label="Enter Value"
-            >
-              Ok
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                className={`h-10 bg-blue-600 hover:bg-blue-700 w-16`}
+                onClick={handleBox}
+                aria-label="Box Permutations"
+              >
+                Box
+              </Button>
+              <Button
+                className={`h-10 bg-blue-600 hover:bg-blue-700 w-16`}
+                onClick={handleAddRecord}
+                aria-label="Enter Value"
+              >
+                Ok
+              </Button>
+            </div>
           </div>
         </div>
 
