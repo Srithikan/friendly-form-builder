@@ -90,29 +90,32 @@ const Index = () => {
       const paddedNumber = String(i).padStart(padLength, "0");
       newRecords.push(`${selectedOption}-${paddedNumber}-${numericValue}`);
     }
-    const count = Math.floor((end - start) / step) + 1;
-    const value = parseInt(numericValue, 10) || 0;
-    const totalValue = count * value;
-    newRecords.push(`GT-${totalValue}`);
 
-    setRecords((prev) => [...prev, ...newRecords]);
+    setRecords((prev) => {
+      // 1. Remove any existing GT rows from previous records
+      const cleanPrev = prev.filter(r => !r.startsWith("GT-"));
+      // 2. Combine clean previous records with new data records
+      const allDataRecords = [...cleanPrev, ...newRecords];
+
+      // 3. Calculate total sum
+      let totalSum = 0;
+      for (const record of allDataRecords) {
+        const parts = record.split("-");
+        const val = parseInt(parts[2], 10) || 0;
+        totalSum += val;
+      }
+
+      // 4. Append single cumulative GT
+      return [...allDataRecords, `GT-${totalSum}`];
+    });
+
     setNumericValue("1");
+    setStartRange("");
     if (showRange) {
       setShowRange(false);
       setEndRange("");
       setStepValue("1");
-      setStartRange("");
     }
-    // Note: I am also clearing startRange if it was a range input, 
-    // to ensure a clean slate for the next 'No' (single) input. 
-    // If user was in single mode (showRange false), startRange is NOT cleared by this specific block, 
-    // preserving typical behaviors unless I decide to clear it always.
-    // However, to be consistent with 'closing', I'll clear fields used in that mode.
-    // Actually, let's just clear startRange always if that's desired? 
-    // Previous code didn't clear startRange. 
-    // If I switch from Range -> Single, I probably want to clear Start too.
-    // If I am in Single, I stay in Single.
-    // Let's refine the logic to match "close the count".
 
     // Simpler approach requested by thought process:
     setShowRange(false);
@@ -151,31 +154,36 @@ const Index = () => {
   };
 
   const deleteSelected = () => {
-    const filteredRecords = records.filter((_, index) => !selectedIndices.has(index));
+    // 1. Filter out selected records
+    const remainingRecords = records.filter((_, index) => !selectedIndices.has(index));
 
-    const updatedRecords: string[] = [];
-    let currentBatchSum = 0;
+    // 2. Filter out ANY GT rows (we will rebuild the single GT)
+    const dataRecords = remainingRecords.filter(r => !r.startsWith("GT-"));
 
-    for (const record of filteredRecords) {
-      if (record.startsWith("GT-")) {
-        updatedRecords.push(`GT-${currentBatchSum}`);
-        currentBatchSum = 0;
-      } else {
-        const parts = record.split("-");
-        const val = parseInt(parts[2], 10) || 0;
-        currentBatchSum += val;
-        updatedRecords.push(record);
-      }
+    // 3. If no data records left, just clear everything
+    if (dataRecords.length === 0) {
+      setRecords([]);
+      setSelectedIndices(new Set());
+      return;
     }
 
-    setRecords(updatedRecords);
+    // 4. Recalculate Total
+    let totalSum = 0;
+    for (const record of dataRecords) {
+      const parts = record.split("-");
+      const val = parseInt(parts[2], 10) || 0;
+      totalSum += val;
+    }
+
+    // 5. Set new records with new GT
+    setRecords([...dataRecords, `GT-${totalSum}`]);
     setSelectedIndices(new Set());
   };
 
   const handleSend = () => {
     const message = `${name}\n${records.join("\n")}`;
     const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/?text=${encodedMessage}`, "_blank");
+    window.open(`whatsapp://send?text=${encodedMessage}`, "_blank");
   };
 
   return (
