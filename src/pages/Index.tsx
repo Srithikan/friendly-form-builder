@@ -1,16 +1,40 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
-const options = ["60:", "4D:", "AB:", "BC:", "AC:", "A:", "B:", "C:"];
+const initialOptions = ["60", "4D", "AB", "BC", "AC", "A", "B", "C"];
+
+const initialOptionLengths: Record<string, number> = {
+  "60": 3,
+  "4D": 4,
+  "AB": 2,
+  "BC": 2,
+  "AC": 2,
+  "A": 1,
+  "B": 1,
+  "C": 1,
+};
 
 const Index = () => {
+  const [options, setOptions] = useState(initialOptions);
+  const [optionLengths, setOptionLengths] = useState(initialOptionLengths);
+
   const [selectedOption, setSelectedOption] = useState(options[0]);
   const [name, setName] = useState("");
   const [showRange, setShowRange] = useState(false);
@@ -21,6 +45,11 @@ const Index = () => {
   const [records, setRecords] = useState<string[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [error, setError] = useState("");
+
+  // Add Option Dialog State
+  const [isAddOptionOpen, setIsAddOptionOpen] = useState(false);
+  const [newOptionName, setNewOptionName] = useState("");
+  const [newOptionLength, setNewOptionLength] = useState("");
 
   const validateRange = (start: string, end: string) => {
     if (start === "" || end === "") {
@@ -40,14 +69,18 @@ const Index = () => {
 
   const handleStartRange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "");
-    setStartRange(value);
-    validateRange(value, endRange);
+    if (value.length <= optionLengths[selectedOption]) {
+      setStartRange(value);
+      validateRange(value, endRange);
+    }
   };
 
   const handleEndRange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "");
-    setEndRange(value);
-    validateRange(startRange, value);
+    if (value.length <= optionLengths[selectedOption]) {
+      setEndRange(value);
+      validateRange(startRange, value);
+    }
   };
 
   const handleNumericValue = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,6 +96,12 @@ const Index = () => {
   const handleAddRecord = () => {
     if (!startRange || !numericValue) {
       setError("Please enter Start and Value");
+      return;
+    }
+
+    const requiredLength = optionLengths[selectedOption];
+    if (startRange.length !== requiredLength) {
+      setError(`Start number must be ${requiredLength} digits`);
       return;
     }
 
@@ -88,7 +127,7 @@ const Index = () => {
 
     for (let i = start; i <= end; i += step) {
       const paddedNumber = String(i).padStart(padLength, "0");
-      newRecords.push(`${selectedOption}-${paddedNumber}-${numericValue}`);
+      newRecords.push(`${selectedOption}:${paddedNumber}-${numericValue}`);
     }
 
     setRecords((prev) => {
@@ -100,8 +139,9 @@ const Index = () => {
       // 3. Calculate total sum
       let totalSum = 0;
       for (const record of allDataRecords) {
+        // Expected format: Option:Number-Count
         const parts = record.split("-");
-        const val = parseInt(parts[2], 10) || 0;
+        const val = parseInt(parts[parts.length - 1], 10) || 0;
         totalSum += val;
       }
 
@@ -148,11 +188,17 @@ const Index = () => {
       return;
     }
 
+    const requiredLength = optionLengths[selectedOption];
+    if (startRange.length !== requiredLength) {
+      setError(`Start number must be ${requiredLength} digits`);
+      return;
+    }
+
     const perms = getPermutations(startRange);
     const newRecords: string[] = [];
 
     for (const p of perms) {
-      newRecords.push(`${selectedOption}-${p}-${numericValue}`);
+      newRecords.push(`${selectedOption}:${p}-${numericValue}`);
     }
 
     setRecords((prev) => {
@@ -161,11 +207,12 @@ const Index = () => {
       // 2. Combine
       const allDataRecords = [...cleanPrev, ...newRecords];
 
-      // 3. Calculate total
+      // 3. Calculate total sum
       let totalSum = 0;
       for (const record of allDataRecords) {
+        // Expected format: Option:Number-Count, splitting by "-" yields ["Option:Number", "Count"]
         const parts = record.split("-");
-        const val = parseInt(parts[2], 10) || 0;
+        const val = parseInt(parts[parts.length - 1], 10) || 0;
         totalSum += val;
       }
 
@@ -182,6 +229,76 @@ const Index = () => {
       setStepValue("1");
     }
     setError("");
+  };
+
+  const handleAll = () => {
+    if (!startRange || !numericValue) {
+      setError("Please enter No (Start) and Count");
+      return;
+    }
+
+    const inputLength = startRange.length;
+    const matchingOptions = options.filter(opt => optionLengths[opt] === inputLength);
+
+    if (matchingOptions.length === 0) {
+      setError(`No options found for ${inputLength} digit number`);
+      return;
+    }
+
+    const newRecords: string[] = [];
+    for (const opt of matchingOptions) {
+      newRecords.push(`${opt}:${startRange}-${numericValue}`);
+    }
+
+    setRecords((prev) => {
+      // 1. Remove any existing GT rows
+      const cleanPrev = prev.filter((r) => !r.startsWith("GT-"));
+      // 2. Combine
+      const allDataRecords = [...cleanPrev, ...newRecords];
+
+      // 3. Calculate total
+      let totalSum = 0;
+      for (const record of allDataRecords) {
+        const parts = record.split("-");
+        const val = parseInt(parts[parts.length - 1], 10) || 0;
+        totalSum += val;
+      }
+
+      // 4. Append GT
+      return [...allDataRecords, `GT-${totalSum}`];
+    });
+
+    // Clear Inputs
+    setNumericValue("1");
+    setStartRange("");
+    setError("");
+  };
+
+  const handleAddOption = () => {
+    if (!newOptionName.trim()) {
+      return; // Or show internal dialog error
+    }
+    const len = parseInt(newOptionLength, 10);
+    if (isNaN(len) || len < 1) {
+      return;
+    }
+
+    const name = newOptionName.trim().toUpperCase(); // Normalize
+    if (options.includes(name)) {
+      // Already exists, just select it
+      setSelectedOption(name);
+      setIsAddOptionOpen(false);
+      return;
+    }
+
+    setOptions([...options, name]);
+    setOptionLengths({ ...optionLengths, [name]: len });
+    setSelectedOption(name);
+
+    // Reset and close
+    setNewOptionName("");
+    setNewOptionLength("");
+    setIsAddOptionOpen(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -228,7 +345,7 @@ const Index = () => {
     let totalSum = 0;
     for (const record of dataRecords) {
       const parts = record.split("-");
-      const val = parseInt(parts[2], 10) || 0;
+      const val = parseInt(parts[parts.length - 1], 10) || 0;
       totalSum += val;
     }
 
@@ -260,11 +377,26 @@ const Index = () => {
                   <DropdownMenuItem
                     key={option}
                     className="dropdown-item"
-                    onClick={() => setSelectedOption(option)}
+                    onClick={() => {
+                      setSelectedOption(option);
+                      setStartRange("");
+                      setEndRange("");
+                      setError("");
+                    }}
                   >
                     {option}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="dropdown-item flex items-center gap-2 text-primary font-bold cursor-pointer"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setIsAddOptionOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" /> Add New...
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -285,7 +417,7 @@ const Index = () => {
 
         {/* Row 2: Start Range - End Range - Value */}
         <div className="flex items-end gap-3">
-          <div className="w-24 space-y-1">
+          <div className="w-40 space-y-1">
             <label htmlFor="startRange" className="form-label">
               {showRange ? "Start" : "No"}
             </label>
@@ -295,14 +427,14 @@ const Index = () => {
               inputMode="numeric"
               value={startRange}
               onChange={handleStartRange}
-              className="input-field"
+              className="input-field px-2"
               aria-label="Start of range"
             />
           </div>
 
           {showRange && (
             <>
-              <div className="w-24 space-y-1">
+              <div className="w-40 space-y-1">
                 <label htmlFor="endRange" className="form-label">
                   End
                 </label>
@@ -312,12 +444,12 @@ const Index = () => {
                   inputMode="numeric"
                   value={endRange}
                   onChange={handleEndRange}
-                  className="input-field"
+                  className="input-field px-2"
                   aria-label="End of range"
                 />
               </div>
 
-              <div className="w-24 space-y-1">
+              <div className="w-40 space-y-1">
                 <label htmlFor="stepValue" className="form-label">
                   &nbsp;
                 </label>
@@ -327,14 +459,14 @@ const Index = () => {
                   inputMode="numeric"
                   value={stepValue}
                   onChange={handleStepValue}
-                  className="input-field"
+                  className="input-field px-2"
                   aria-label="Step Value"
                 />
               </div>
             </>
           )}
 
-          <div className="w-24 space-y-1">
+          <div className="w-40 space-y-1">
             <label htmlFor="numericValue" className="form-label">
               Count
             </label>
@@ -345,12 +477,19 @@ const Index = () => {
               value={numericValue}
               onChange={handleNumericValue}
               onKeyDown={handleKeyDown}
-              className="input-field"
+              className="input-field px-2"
               aria-label="Numeric Value"
             />
           </div>
 
           <div className="flex flex-col gap-2 shrink-0 ml-auto">
+            <Button
+              className={`h-10 bg-indigo-600 hover:bg-indigo-700 font-bold`}
+              onClick={handleAll}
+              aria-label="Add All"
+            >
+              All
+            </Button>
             <Button
               variant={showRange ? "default" : "secondary"}
               onClick={() => setShowRange(!showRange)}
@@ -359,15 +498,17 @@ const Index = () => {
               Pointer
             </Button>
             <div className="flex gap-2">
+              {!showRange && (
+                <Button
+                  className={`h-10 bg-amber-600 hover:bg-amber-700 w-16`}
+                  onClick={handleBox}
+                  aria-label="Box Permutations"
+                >
+                  Box
+                </Button>
+              )}
               <Button
-                className={`h-10 bg-blue-600 hover:bg-blue-700 w-16`}
-                onClick={handleBox}
-                aria-label="Box Permutations"
-              >
-                Box
-              </Button>
-              <Button
-                className={`h-10 bg-blue-600 hover:bg-blue-700 w-16`}
+                className={`h-10 bg-emerald-600 hover:bg-emerald-700 w-16`}
                 onClick={handleAddRecord}
                 aria-label="Enter Value"
               >
@@ -400,11 +541,12 @@ const Index = () => {
                     const parts = record.split("-");
 
                     if (isGT) {
+                      const count = record.split("-")[1];
                       return (
                         <tr key={index} className="bg-muted/50 font-bold">
                           <td className="px-3 py-2">GT</td>
                           <td className="px-3 py-2 text-center">-</td>
-                          <td className="px-3 py-2">{parts[1]}</td>
+                          <td className="px-3 py-2">{count}</td>
                           <td className="px-3 py-2 text-center">
                             <input
                               type="checkbox"
@@ -417,12 +559,16 @@ const Index = () => {
                       );
                     }
 
-                    // Standard record: Option-Number-Count
+                    // Standard record: Option:Number-Count
+                    // Example: "60:123-1" -> split("-") -> ["60:123", "1"]
+                    const [leftPart, count] = record.split("-");
+                    const [option, number] = leftPart.split(":");
+
                     return (
                       <tr key={index}>
-                        <td className="px-3 py-2">{parts[0]}</td>
-                        <td className="px-3 py-2">{parts[1]}</td>
-                        <td className="px-3 py-2">{parts[2]}</td>
+                        <td className="px-3 py-2">{option}</td>
+                        <td className="px-3 py-2">{number}</td>
+                        <td className="px-3 py-2">{count}</td>
                         <td className="px-3 py-2 text-center">
                           <input
                             type="checkbox"
@@ -473,6 +619,47 @@ const Index = () => {
           </div>
         )}
       </div>
+
+      {/* Add Option Dialog */}
+      <Dialog open={isAddOptionOpen} onOpenChange={setIsAddOptionOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Option</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="optionName" className="text-right">
+                Name
+              </Label>
+              <input
+                id="optionName"
+                value={newOptionName}
+                onChange={(e) => setNewOptionName(e.target.value)}
+                placeholder="e.g. XYZ"
+                className="col-span-3 input-field"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="optionLength" className="text-right">
+                Length
+              </Label>
+              <input
+                id="optionLength"
+                type="number"
+                value={newOptionLength}
+                onChange={(e) => setNewOptionLength(e.target.value)}
+                placeholder="e.g. 3"
+                className="col-span-3 input-field"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit" onClick={handleAddOption}>
+              Add Option
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 };
