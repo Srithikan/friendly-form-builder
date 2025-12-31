@@ -289,12 +289,12 @@ const Index = () => {
             <Button
               variant={showRange ? "default" : "secondary"}
               onClick={() => setShowRange(!showRange)}
-              className={`h-10 w-24 font-bold ${showRange ? "bg-purple-600 hover:bg-purple-700" : "bg-blue-600 hover:bg-blue-700 text-white"}`}
+              className={`h-10 font-bold ${showRange ? "w-16 bg-purple-600 hover:bg-purple-700 text-xs" : "w-24 bg-blue-600 hover:bg-blue-700 text-white"}`}
             >
               Pointer
             </Button>
             <Button
-              className="h-10 w-24 bg-blue-600 hover:bg-blue-700"
+              className={`h-10 bg-blue-600 hover:bg-blue-700 ${showRange ? "w-16" : "w-24"}`}
               onClick={handleAddRecord}
               aria-label="Enter Value"
             >
