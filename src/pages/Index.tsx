@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, CornerDownLeft } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,7 @@ const Index = () => {
   const [numericValue, setNumericValue] = useState("");
   const [stepValue, setStepValue] = useState("");
   const [records, setRecords] = useState<string[]>([]);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [error, setError] = useState("");
 
   const validateRange = (start: string, end: string) => {
@@ -106,10 +107,43 @@ const Index = () => {
 
   const handleClear = () => {
     setRecords([]);
+    setSelectedIndices(new Set());
     setStartRange("");
     setEndRange("");
     setNumericValue("");
     setError("");
+  };
+
+  const toggleSelection = (index: number) => {
+    const newSelected = new Set(selectedIndices);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedIndices(newSelected);
+  };
+
+  const deleteSelected = () => {
+    const filteredRecords = records.filter((_, index) => !selectedIndices.has(index));
+
+    const updatedRecords: string[] = [];
+    let currentBatchSum = 0;
+
+    for (const record of filteredRecords) {
+      if (record.startsWith("GT-")) {
+        updatedRecords.push(`GT-${currentBatchSum}`);
+        currentBatchSum = 0;
+      } else {
+        const parts = record.split("-");
+        const val = parseInt(parts[2], 10) || 0;
+        currentBatchSum += val;
+        updatedRecords.push(record);
+      }
+    }
+
+    setRecords(updatedRecords);
+    setSelectedIndices(new Set());
   };
 
   const handleSend = () => {
@@ -221,12 +255,11 @@ const Index = () => {
           </div>
 
           <Button
-            size="icon"
             className="mb-0.5 shrink-0"
             onClick={handleAddRecord}
             aria-label="Enter Value"
           >
-            <CornerDownLeft className="h-4 w-4" />
+            Ok
           </Button>
         </div>
 
@@ -244,6 +277,7 @@ const Index = () => {
                     <th className="px-3 py-2">Option</th>
                     <th className="px-3 py-2">Number</th>
                     <th className="px-3 py-2">Count</th>
+                    <th className="px-3 py-2 w-10">Select</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -257,21 +291,32 @@ const Index = () => {
                           <td className="px-3 py-2">GT</td>
                           <td className="px-3 py-2 text-center">-</td>
                           <td className="px-3 py-2">{parts[1]}</td>
+                          <td className="px-3 py-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedIndices.has(index)}
+                              onChange={() => toggleSelection(index)}
+                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                          </td>
                         </tr>
                       );
                     }
 
                     // Standard record: Option-Number-Count
-                    // If the option itself has a dash, this split might need care, 
-                    // but current options don't have dashes.
-                    // parts[0] = Option (e.g. "60:")
-                    // parts[1] = Number
-                    // parts[2] = Count
                     return (
                       <tr key={index}>
                         <td className="px-3 py-2">{parts[0]}</td>
                         <td className="px-3 py-2">{parts[1]}</td>
                         <td className="px-3 py-2">{parts[2]}</td>
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedIndices.has(index)}
+                            onChange={() => toggleSelection(index)}
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                        </td>
                       </tr>
                     );
                   })}
@@ -297,6 +342,19 @@ const Index = () => {
               onClick={handleClear}
             >
               Clear
+            </Button>
+          </div>
+        )}
+
+        {selectedIndices.size > 0 && (
+          <div className="mt-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              className="w-full"
+              onClick={deleteSelected}
+            >
+              Delete Selected ({selectedIndices.size})
             </Button>
           </div>
         )}
