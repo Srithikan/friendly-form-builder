@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 
-const options = ["60", "4D", "AB", "BC", "AC", "A", "B", "C"];
+const options = ["60:", "4D:", "AB:", "BC:", "AC:", "A:", "B:", "C:"];
 
 const Index = () => {
   const [selectedOption, setSelectedOption] = useState(options[0]);
@@ -161,7 +161,7 @@ const Index = () => {
         <div className="flex items-end gap-3">
           <div className="w-24 space-y-1">
             <label htmlFor="startRange" className="form-label">
-              No
+              Start
             </label>
             <input
               id="startRange"
@@ -169,17 +169,14 @@ const Index = () => {
               inputMode="numeric"
               value={startRange}
               onChange={handleStartRange}
-              placeholder="1"
               className="input-field"
               aria-label="Start of range"
             />
           </div>
 
-          <span className="pb-3 text-muted-foreground font-medium">—</span>
-
           <div className="w-24 space-y-1">
             <label htmlFor="endRange" className="form-label">
-
+              End
             </label>
             <input
               id="endRange"
@@ -187,15 +184,29 @@ const Index = () => {
               inputMode="numeric"
               value={endRange}
               onChange={handleEndRange}
-              placeholder="99"
               className="input-field"
               aria-label="End of range"
             />
           </div>
 
           <div className="w-24 space-y-1">
+            <label htmlFor="stepValue" className="form-label">
+              Point
+            </label>
+            <input
+              id="stepValue"
+              type="text"
+              inputMode="numeric"
+              value={stepValue}
+              onChange={handleStepValue}
+              className="input-field"
+              aria-label="Step Value"
+            />
+          </div>
+
+          <div className="w-24 space-y-1">
             <label htmlFor="numericValue" className="form-label">
-              Value
+              Count
             </label>
             <input
               id="numericValue"
@@ -204,23 +215,8 @@ const Index = () => {
               value={numericValue}
               onChange={handleNumericValue}
               onKeyDown={handleKeyDown}
-              placeholder="10"
               className="input-field"
               aria-label="Numeric Value"
-            />
-          </div>
-
-          <div className="w-16 space-y-1">
-
-            <input
-              id="stepValue"
-              type="text"
-              inputMode="numeric"
-              value={stepValue}
-              onChange={handleStepValue}
-              placeholder="1"
-              className="input-field"
-              aria-label="Step Value"
             />
           </div>
 
@@ -240,13 +236,49 @@ const Index = () => {
 
         {/* Records Display */}
         <div className="pt-2">
-          <div className="space-y-1">
-            {records.map((record, index) => (
-              <div key={index} className={`text-sm font-medium ${record.startsWith("GT-") ? "font-bold" : ""}`}>
-                {record}
-              </div>
-            ))}
-          </div>
+          {records.length > 0 && (
+            <div className="border rounded-md overflow-hidden">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-muted text-muted-foreground font-medium">
+                  <tr>
+                    <th className="px-3 py-2">Option</th>
+                    <th className="px-3 py-2">Number</th>
+                    <th className="px-3 py-2">Count</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {records.map((record, index) => {
+                    const isGT = record.startsWith("GT-");
+                    const parts = record.split("-");
+
+                    if (isGT) {
+                      return (
+                        <tr key={index} className="bg-muted/50 font-bold">
+                          <td className="px-3 py-2">GT</td>
+                          <td className="px-3 py-2 text-center">-</td>
+                          <td className="px-3 py-2">{parts[1]}</td>
+                        </tr>
+                      );
+                    }
+
+                    // Standard record: Option-Number-Count
+                    // If the option itself has a dash, this split might need care, 
+                    // but current options don't have dashes.
+                    // parts[0] = Option (e.g. "60:")
+                    // parts[1] = Number
+                    // parts[2] = Count
+                    return (
+                      <tr key={index}>
+                        <td className="px-3 py-2">{parts[0]}</td>
+                        <td className="px-3 py-2">{parts[1]}</td>
+                        <td className="px-3 py-2">{parts[2]}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {records.length > 0 && (
