@@ -16,30 +16,36 @@ const Index = () => {
   const [secondNumber, setSecondNumber] = useState("");
   const [errors, setErrors] = useState({ first: "", second: "" });
 
-  const validateNumber = (value: string, field: "first" | "second") => {
+  const validateRange = (value: string, field: "first" | "second") => {
     if (value === "") {
       setErrors((prev) => ({ ...prev, [field]: "" }));
       return;
     }
     
-    const num = parseFloat(value);
-    if (isNaN(num)) {
-      setErrors((prev) => ({ ...prev, [field]: "Please enter a valid number" }));
+    const rangePattern = /^\d+-\d+$/;
+    if (!rangePattern.test(value)) {
+      setErrors((prev) => ({ ...prev, [field]: "Use format: min-max (e.g., 1-99)" }));
+      return;
+    }
+    
+    const [min, max] = value.split("-").map(Number);
+    if (min >= max) {
+      setErrors((prev) => ({ ...prev, [field]: "Min must be less than max" }));
     } else {
       setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
-  const handleFirstNumber = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const handleFirstRange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9-]/g, "");
     setFirstNumber(value);
-    validateNumber(value, "first");
+    validateRange(value, "first");
   };
 
-  const handleSecondNumber = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const handleSecondRange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9-]/g, "");
     setSecondNumber(value);
-    validateNumber(value, "second");
+    validateRange(value, "second");
   };
 
   return (
@@ -84,16 +90,16 @@ const Index = () => {
         {/* Row 2: Two Numeric Inputs */}
         <div className="flex gap-3">
           <div className="flex-1 space-y-1">
-            <label htmlFor="number1" className="form-label">
-              Number 1
+            <label htmlFor="range1" className="form-label">
+              Range 1
             </label>
             <input
-              id="number1"
+              id="range1"
               type="text"
-              inputMode="decimal"
+              inputMode="numeric"
               value={firstNumber}
-              onChange={handleFirstNumber}
-              placeholder="0"
+              onChange={handleFirstRange}
+              placeholder="1-99"
               className={`input-field ${errors.first ? "ring-2 ring-destructive ring-offset-2" : ""}`}
               aria-describedby={errors.first ? "error1" : undefined}
             />
@@ -105,16 +111,16 @@ const Index = () => {
           </div>
 
           <div className="flex-1 space-y-1">
-            <label htmlFor="number2" className="form-label">
-              Number 2
+            <label htmlFor="range2" className="form-label">
+              Range 2
             </label>
             <input
-              id="number2"
+              id="range2"
               type="text"
-              inputMode="decimal"
+              inputMode="numeric"
               value={secondNumber}
-              onChange={handleSecondNumber}
-              placeholder="0"
+              onChange={handleSecondRange}
+              placeholder="2-1000"
               className={`input-field ${errors.second ? "ring-2 ring-destructive ring-offset-2" : ""}`}
               aria-describedby={errors.second ? "error2" : undefined}
             />
