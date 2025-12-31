@@ -13,6 +13,7 @@ const options = ["60:", "4D:", "AB:", "BC:", "AC:", "A:", "B:", "C:"];
 const Index = () => {
   const [selectedOption, setSelectedOption] = useState(options[0]);
   const [name, setName] = useState("");
+  const [showRange, setShowRange] = useState(false);
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
   const [numericValue, setNumericValue] = useState("");
@@ -189,13 +190,21 @@ const Index = () => {
               aria-label="Name"
             />
           </div>
+
+          <Button
+            variant={showRange ? "default" : "outline"}
+            onClick={() => setShowRange(!showRange)}
+            className="shrink-0"
+          >
+            Count
+          </Button>
         </div>
 
         {/* Row 2: Start Range - End Range - Value */}
         <div className="flex items-end gap-3">
           <div className="w-24 space-y-1">
             <label htmlFor="startRange" className="form-label">
-              Start
+              {showRange ? "Start" : "No"}
             </label>
             <input
               id="startRange"
@@ -208,35 +217,39 @@ const Index = () => {
             />
           </div>
 
-          <div className="w-24 space-y-1">
-            <label htmlFor="endRange" className="form-label">
-              End
-            </label>
-            <input
-              id="endRange"
-              type="text"
-              inputMode="numeric"
-              value={endRange}
-              onChange={handleEndRange}
-              className="input-field"
-              aria-label="End of range"
-            />
-          </div>
+          {showRange && (
+            <>
+              <div className="w-24 space-y-1">
+                <label htmlFor="endRange" className="form-label">
+                  End
+                </label>
+                <input
+                  id="endRange"
+                  type="text"
+                  inputMode="numeric"
+                  value={endRange}
+                  onChange={handleEndRange}
+                  className="input-field"
+                  aria-label="End of range"
+                />
+              </div>
 
-          <div className="w-24 space-y-1">
-            <label htmlFor="stepValue" className="form-label">
-              Point
-            </label>
-            <input
-              id="stepValue"
-              type="text"
-              inputMode="numeric"
-              value={stepValue}
-              onChange={handleStepValue}
-              className="input-field"
-              aria-label="Step Value"
-            />
-          </div>
+              <div className="w-24 space-y-1">
+                <label htmlFor="stepValue" className="form-label">
+                  Point
+                </label>
+                <input
+                  id="stepValue"
+                  type="text"
+                  inputMode="numeric"
+                  value={stepValue}
+                  onChange={handleStepValue}
+                  className="input-field"
+                  aria-label="Step Value"
+                />
+              </div>
+            </>
+          )}
 
           <div className="w-24 space-y-1">
             <label htmlFor="numericValue" className="form-label">
