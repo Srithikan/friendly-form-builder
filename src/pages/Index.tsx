@@ -1,19 +1,22 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, CornerDownLeft } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
-const options = ["Option 1", "Option 2", "Option 3", "Option 4"];
+const options = ["60", "4D", "AB", "BC", "AC", "A", "B", "C"];
 
 const Index = () => {
   const [selectedOption, setSelectedOption] = useState(options[0]);
   const [name, setName] = useState("");
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
+  const [numericValue, setNumericValue] = useState("");
+  const [records, setRecords] = useState<string[]>([]);
   const [error, setError] = useState("");
 
   const validateRange = (start: string, end: string) => {
@@ -21,10 +24,10 @@ const Index = () => {
       setError("");
       return;
     }
-    
+
     const startNum = parseInt(start, 10);
     const endNum = parseInt(end, 10);
-    
+
     if (startNum >= endNum) {
       setError("Start must be less than end");
     } else {
@@ -42,6 +45,60 @@ const Index = () => {
     const value = e.target.value.replace(/\D/g, "");
     setEndRange(value);
     validateRange(startRange, value);
+  };
+
+  const handleNumericValue = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "");
+    setNumericValue(value);
+  };
+
+  const handleAddRecord = () => {
+    if (!startRange || !numericValue) {
+      setError("Please enter Start and Value");
+      return;
+    }
+
+    const start = parseInt(startRange, 10);
+    let end = parseInt(endRange, 10);
+
+    if (isNaN(start)) {
+      setError("Start range must be a number");
+      return;
+    }
+
+    if (isNaN(end) || end < start) {
+      end = start;
+    }
+
+    const newRecords: string[] = [];
+    for (let i = start; i <= end; i++) {
+      newRecords.push(`${selectedOption}-${i}-${numericValue}`);
+      newRecords.push(`GT-${numericValue}`);
+    }
+
+    setRecords((prev) => [...prev, ...newRecords]);
+    setNumericValue("");
+    setError("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleAddRecord();
+    }
+  };
+
+  const handleClear = () => {
+    setRecords([]);
+    setStartRange("");
+    setEndRange("");
+    setNumericValue("");
+    setError("");
+  };
+
+  const handleSend = () => {
+    const message = `${name}\n${records.join("\n")}`;
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, "_blank");
   };
 
   return (
@@ -83,9 +140,9 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Row 2: Start Range - End Range */}
+        {/* Row 2: Start Range - End Range - Value */}
         <div className="flex items-end gap-3">
-          <div className="flex-1 space-y-1">
+          <div className="w-24 space-y-1">
             <label htmlFor="startRange" className="form-label">
               Start
             </label>
@@ -103,7 +160,7 @@ const Index = () => {
 
           <span className="pb-3 text-muted-foreground font-medium">—</span>
 
-          <div className="flex-1 space-y-1">
+          <div className="w-24 space-y-1">
             <label htmlFor="endRange" className="form-label">
               End
             </label>
@@ -118,10 +175,67 @@ const Index = () => {
               aria-label="End of range"
             />
           </div>
+
+          <div className="w-24 space-y-1">
+            <label htmlFor="numericValue" className="form-label">
+              Value
+            </label>
+            <input
+              id="numericValue"
+              type="text"
+              inputMode="numeric"
+              value={numericValue}
+              onChange={handleNumericValue}
+              onKeyDown={handleKeyDown}
+              placeholder="10"
+              className="input-field"
+              aria-label="Numeric Value"
+            />
+          </div>
+
+          <Button
+            size="icon"
+            className="mb-0.5 shrink-0"
+            onClick={handleAddRecord}
+            aria-label="Enter Value"
+          >
+            <CornerDownLeft className="h-4 w-4" />
+          </Button>
         </div>
 
         {error && (
           <p className="text-xs text-destructive -mt-3">{error}</p>
+        )}
+
+        {/* Records Display */}
+        <div className="pt-2">
+          <div className="space-y-1">
+            {records.map((record, index) => (
+              <div key={index} className={`text-sm font-medium ${record.startsWith("GT-") ? "font-bold" : ""}`}>
+                {record}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {records.length > 0 && (
+          <div className="flex gap-3 mt-4">
+            <Button
+              size="sm"
+              className="flex-1 bg-green-600 hover:bg-green-700"
+              onClick={handleSend}
+            >
+              Send
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="flex-1"
+              onClick={handleClear}
+            >
+              Clear
+            </Button>
+          </div>
         )}
       </div>
     </main>

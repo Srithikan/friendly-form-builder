@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
+    --background: 330 80% 96%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -86,10 +86,7 @@
 
 @layer components {
   .input-field {
-    @apply h-12 w-full rounded-xl border border-input bg-card px-4 text-base 
-           placeholder:text-muted-foreground focus:outline-none focus:ring-2 
-           focus:ring-ring focus:ring-offset-2 focus:ring-offset-background
-           transition-all duration-200;
+    @apply h-12 w-full rounded-xl border border-input bg-card px-4 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background transition-all duration-200;
     min-height: var(--input-height);
     box-shadow: var(--shadow-soft);
   }
@@ -99,10 +96,7 @@
   }
 
   .dropdown-trigger {
-    @apply h-12 rounded-xl border border-input bg-card px-4 text-base
-           flex items-center justify-between gap-2
-           focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
-           transition-all duration-200 cursor-pointer;
+    @apply h-12 rounded-xl border border-input bg-card px-4 text-base flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all duration-200 cursor-pointer;
     min-height: var(--input-height);
     box-shadow: var(--shadow-soft);
   }
@@ -112,14 +106,11 @@
   }
 
   .dropdown-content {
-    @apply z-50 min-w-[8rem] overflow-hidden rounded-xl border bg-popover p-1
-           shadow-lg animate-in fade-in-0 zoom-in-95;
+    @apply z-50 min-w-[8rem] overflow-hidden rounded-xl border bg-popover p-1 shadow-lg animate-in fade-in-0 zoom-in-95;
   }
 
   .dropdown-item {
-    @apply relative flex cursor-pointer select-none items-center rounded-lg 
-           px-3 py-2.5 text-sm outline-none transition-colors
-           hover:bg-secondary focus:bg-secondary;
+    @apply relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2.5 text-sm outline-none transition-colors hover:bg-secondary focus:bg-secondary;
   }
 
   .form-label {
