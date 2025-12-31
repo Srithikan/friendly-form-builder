@@ -12,40 +12,36 @@ const options = ["Option 1", "Option 2", "Option 3", "Option 4"];
 const Index = () => {
   const [selectedOption, setSelectedOption] = useState(options[0]);
   const [name, setName] = useState("");
-  const [firstNumber, setFirstNumber] = useState("");
-  const [secondNumber, setSecondNumber] = useState("");
-  const [errors, setErrors] = useState({ first: "", second: "" });
+  const [startRange, setStartRange] = useState("");
+  const [endRange, setEndRange] = useState("");
+  const [error, setError] = useState("");
 
-  const validateRange = (value: string, field: "first" | "second") => {
-    if (value === "") {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
+  const validateRange = (start: string, end: string) => {
+    if (start === "" || end === "") {
+      setError("");
       return;
     }
     
-    const rangePattern = /^\d+-\d+$/;
-    if (!rangePattern.test(value)) {
-      setErrors((prev) => ({ ...prev, [field]: "Use format: min-max (e.g., 1-99)" }));
-      return;
-    }
+    const startNum = parseInt(start, 10);
+    const endNum = parseInt(end, 10);
     
-    const [min, max] = value.split("-").map(Number);
-    if (min >= max) {
-      setErrors((prev) => ({ ...prev, [field]: "Min must be less than max" }));
+    if (startNum >= endNum) {
+      setError("Start must be less than end");
     } else {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
+      setError("");
     }
   };
 
-  const handleFirstRange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9-]/g, "");
-    setFirstNumber(value);
-    validateRange(value, "first");
+  const handleStartRange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "");
+    setStartRange(value);
+    validateRange(value, endRange);
   };
 
-  const handleSecondRange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9-]/g, "");
-    setSecondNumber(value);
-    validateRange(value, "second");
+  const handleEndRange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "");
+    setEndRange(value);
+    validateRange(startRange, value);
   };
 
   return (
@@ -87,50 +83,46 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Row 2: Two Numeric Inputs */}
-        <div className="flex gap-3">
+        {/* Row 2: Start Range - End Range */}
+        <div className="flex items-end gap-3">
           <div className="flex-1 space-y-1">
-            <label htmlFor="range1" className="form-label">
-              Range 1
+            <label htmlFor="startRange" className="form-label">
+              Start
             </label>
             <input
-              id="range1"
+              id="startRange"
               type="text"
               inputMode="numeric"
-              value={firstNumber}
-              onChange={handleFirstRange}
-              placeholder="1-99"
-              className={`input-field ${errors.first ? "ring-2 ring-destructive ring-offset-2" : ""}`}
-              aria-describedby={errors.first ? "error1" : undefined}
+              value={startRange}
+              onChange={handleStartRange}
+              placeholder="1"
+              className="input-field"
+              aria-label="Start of range"
             />
-            {errors.first && (
-              <p id="error1" className="text-xs text-destructive mt-1">
-                {errors.first}
-              </p>
-            )}
           </div>
 
+          <span className="pb-3 text-muted-foreground font-medium">—</span>
+
           <div className="flex-1 space-y-1">
-            <label htmlFor="range2" className="form-label">
-              Range 2
+            <label htmlFor="endRange" className="form-label">
+              End
             </label>
             <input
-              id="range2"
+              id="endRange"
               type="text"
               inputMode="numeric"
-              value={secondNumber}
-              onChange={handleSecondRange}
-              placeholder="2-1000"
-              className={`input-field ${errors.second ? "ring-2 ring-destructive ring-offset-2" : ""}`}
-              aria-describedby={errors.second ? "error2" : undefined}
+              value={endRange}
+              onChange={handleEndRange}
+              placeholder="99"
+              className="input-field"
+              aria-label="End of range"
             />
-            {errors.second && (
-              <p id="error2" className="text-xs text-destructive mt-1">
-                {errors.second}
-              </p>
-            )}
           </div>
         </div>
+
+        {error && (
+          <p className="text-xs text-destructive -mt-3">{error}</p>
+        )}
       </div>
     </main>
   );
