@@ -274,6 +274,40 @@ const Index = () => {
     setError("");
   };
 
+  const handleTriples = () => {
+    if (!numericValue) {
+      setError("Please enter Count");
+      return;
+    }
+
+    const newRecords: string[] = [];
+    for (let i = 0; i <= 9; i++) {
+      const triple = String(i).repeat(3); // "000", "111", etc.
+      newRecords.push(`${selectedOption}:${triple}-${numericValue}`);
+    }
+
+    setRecords((prev) => {
+      // 1. Remove any existing GT rows
+      const cleanPrev = prev.filter((r) => !r.startsWith("GT-"));
+      // 2. Combine
+      const allDataRecords = [...cleanPrev, ...newRecords];
+
+      // 3. Calculate total sum
+      let totalSum = 0;
+      for (const record of allDataRecords) {
+        const parts = record.split("-");
+        const val = parseInt(parts[parts.length - 1], 10) || 0;
+        totalSum += val;
+      }
+
+      // 4. Append GT
+      return [...allDataRecords, `GT-${totalSum}`];
+    });
+
+    setNumericValue("1");
+    setError("");
+  };
+
   const handleAddOption = () => {
     if (!newOptionName.trim()) {
       return; // Or show internal dialog error
@@ -359,6 +393,19 @@ const Index = () => {
     const encodedMessage = encodeURIComponent(message);
     window.open(`whatsapp://send?text=${encodedMessage}`, "_blank");
   };
+
+  const getDisplayRecords = () => {
+    const indexedRecords = records.map((r, i) => ({ r, i }));
+    const dataRecords = indexedRecords
+      .filter((item) => !item.r.startsWith("GT-"))
+      .reverse();
+    const gtRecords = indexedRecords.filter((item) =>
+      item.r.startsWith("GT-")
+    );
+    return [...dataRecords, ...gtRecords];
+  };
+
+  const displayRecords = getDisplayRecords();
 
   return (
     <main className="min-h-screen bg-background px-4 py-6 sm:px-6 sm:py-8">
@@ -482,21 +529,37 @@ const Index = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2 shrink-0 ml-auto items-end">
-            <Button
-              className={`h-10 bg-indigo-600 hover:bg-indigo-700 font-bold w-16`}
-              onClick={handleAll}
-              aria-label="Add All"
-            >
-              All
-            </Button>
-            <Button
-              variant={showRange ? "default" : "secondary"}
-              onClick={() => setShowRange(!showRange)}
-              className={`h-10 font-bold w-16 ${showRange ? "bg-purple-600 hover:bg-purple-700 text-[10px]" : "bg-blue-600 hover:bg-blue-700 text-xs text-white"}`}
-            >
-              Pointer
-            </Button>
+          <div className="flex flex-col gap-2 shrink-0 ml-auto">
+            <div className="flex gap-2 items-start">
+              {!showRange && (
+                <Button
+                  className="h-[88px] w-16 bg-pink-600 hover:bg-pink-700 font-bold whitespace-normal leading-tight px-1"
+                  onClick={handleTriples}
+                  aria-label="Add Triples"
+                >
+                  000
+                  <br />-
+                  <br />
+                  999
+                </Button>
+              )}
+              <div className="flex flex-col gap-2">
+                <Button
+                  className={`h-10 bg-indigo-600 hover:bg-indigo-700 font-bold w-16`}
+                  onClick={handleAll}
+                  aria-label="Add All"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={showRange ? "default" : "secondary"}
+                  onClick={() => setShowRange(!showRange)}
+                  className={`h-10 font-bold w-16 ${showRange ? "bg-purple-600 hover:bg-purple-700 text-[10px]" : "bg-blue-600 hover:bg-blue-700 text-xs text-white"}`}
+                >
+                  Pointer
+                </Button>
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button
                 className={`h-10 bg-emerald-600 hover:bg-emerald-700 w-16`}
@@ -536,7 +599,7 @@ const Index = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {records.map((record, index) => {
+                  {displayRecords.map(({ r: record, i: index }) => {
                     const isGT = record.startsWith("GT-");
                     const parts = record.split("-");
 
