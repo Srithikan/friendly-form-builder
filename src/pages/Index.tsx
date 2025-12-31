@@ -16,6 +16,7 @@ const Index = () => {
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
   const [numericValue, setNumericValue] = useState("");
+  const [stepValue, setStepValue] = useState("");
   const [records, setRecords] = useState<string[]>([]);
   const [error, setError] = useState("");
 
@@ -52,6 +53,11 @@ const Index = () => {
     setNumericValue(value);
   };
 
+  const handleStepValue = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "");
+    setStepValue(value);
+  };
+
   const handleAddRecord = () => {
     if (!startRange || !numericValue) {
       setError("Please enter Start and Value");
@@ -71,10 +77,21 @@ const Index = () => {
     }
 
     const newRecords: string[] = [];
-    for (let i = start; i <= end; i++) {
-      newRecords.push(`${selectedOption}-${i}-${numericValue}`);
-      newRecords.push(`GT-${numericValue}`);
+    const padLength = startRange.length;
+
+    // Determine the padding length from 'startRange'.
+    // If start is '021' (length 3), we want '021', '022', '023'.
+
+    const step = parseInt(stepValue, 10) || 1;
+
+    for (let i = start; i <= end; i += step) {
+      const paddedNumber = String(i).padStart(padLength, "0");
+      newRecords.push(`${selectedOption}-${paddedNumber}-${numericValue}`);
     }
+    const count = Math.floor((end - start) / step) + 1;
+    const value = parseInt(numericValue, 10) || 0;
+    const totalValue = count * value;
+    newRecords.push(`GT-${totalValue}`);
 
     setRecords((prev) => [...prev, ...newRecords]);
     setNumericValue("");
@@ -144,7 +161,7 @@ const Index = () => {
         <div className="flex items-end gap-3">
           <div className="w-24 space-y-1">
             <label htmlFor="startRange" className="form-label">
-              Start
+              No
             </label>
             <input
               id="startRange"
@@ -162,7 +179,7 @@ const Index = () => {
 
           <div className="w-24 space-y-1">
             <label htmlFor="endRange" className="form-label">
-              End
+
             </label>
             <input
               id="endRange"
@@ -190,6 +207,20 @@ const Index = () => {
               placeholder="10"
               className="input-field"
               aria-label="Numeric Value"
+            />
+          </div>
+
+          <div className="w-16 space-y-1">
+
+            <input
+              id="stepValue"
+              type="text"
+              inputMode="numeric"
+              value={stepValue}
+              onChange={handleStepValue}
+              placeholder="1"
+              className="input-field"
+              aria-label="Step Value"
             />
           </div>
 
