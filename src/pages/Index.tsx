@@ -40,8 +40,8 @@ const Index = () => {
   const [showRange, setShowRange] = useState(false);
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
-  const [numericValue, setNumericValue] = useState("1");
-  const [stepValue, setStepValue] = useState("1");
+  const [numericValue, setNumericValue] = useState("");
+  const [stepValue, setStepValue] = useState("");
   const [records, setRecords] = useState<string[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [error, setError] = useState("");
@@ -86,9 +86,14 @@ const Index = () => {
 
   const handleEndRange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "");
-    if (value.length <= optionLengths[selectedOption]) {
+    const maxLen = optionLengths[selectedOption];
+    if (value.length <= maxLen) {
       setEndRange(value);
       validateRange(startRange, value);
+
+      if (value.length === maxLen) {
+        document.getElementById("stepValue")?.focus();
+      }
     }
   };
 
@@ -158,12 +163,12 @@ const Index = () => {
       return [...allDataRecords, `GT-${totalSum}`];
     });
 
-    setNumericValue("1");
+    setNumericValue("");
     setStartRange("");
     if (showRange) {
       setShowRange(false);
       setEndRange("");
-      setStepValue("1");
+      setStepValue("");
     }
 
     // Simpler approach requested by thought process:
@@ -230,12 +235,12 @@ const Index = () => {
     });
 
     // Clear inputs similar to Add Record
-    setNumericValue("1");
+    setNumericValue("");
     setStartRange("");
     if (showRange) {
       setShowRange(false);
       setEndRange("");
-      setStepValue("1");
+      setStepValue("");
     }
     setError("");
   };
@@ -278,7 +283,7 @@ const Index = () => {
     });
 
     // Clear Inputs
-    setNumericValue("1");
+    setNumericValue("");
     setStartRange("");
     setError("");
   };
@@ -313,7 +318,7 @@ const Index = () => {
       return [...allDataRecords, `GT-${totalSum}`];
     });
 
-    setNumericValue("1");
+    setNumericValue("");
     setError("");
   };
 
@@ -355,8 +360,8 @@ const Index = () => {
     setSelectedIndices(new Set());
     setStartRange("");
     setEndRange("");
-    setNumericValue("1");
-    setStepValue("1");
+    setNumericValue("");
+    setStepValue("");
     setError("");
   };
 
