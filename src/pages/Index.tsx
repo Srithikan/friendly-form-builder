@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,8 +32,23 @@ const initialOptionLengths: Record<string, number> = {
 };
 
 const Index = () => {
-  const [options, setOptions] = useState(initialOptions);
-  const [optionLengths, setOptionLengths] = useState(initialOptionLengths);
+  const [options, setOptions] = useState<string[]>(() => {
+    const saved = localStorage.getItem("dropdown_options");
+    return saved ? JSON.parse(saved) : initialOptions;
+  });
+
+  const [optionLengths, setOptionLengths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem("dropdown_lengths");
+    return saved ? JSON.parse(saved) : initialOptionLengths;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("dropdown_options", JSON.stringify(options));
+  }, [options]);
+
+  useEffect(() => {
+    localStorage.setItem("dropdown_lengths", JSON.stringify(optionLengths));
+  }, [optionLengths]);
 
   const [selectedOption, setSelectedOption] = useState(options[0]);
   const [name, setName] = useState("");
