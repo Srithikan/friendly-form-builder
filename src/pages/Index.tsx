@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import {
   DropdownMenu,
@@ -69,9 +69,18 @@ const Index = () => {
 
   const handleStartRange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "");
-    if (value.length <= optionLengths[selectedOption]) {
+    const maxLen = optionLengths[selectedOption];
+    if (value.length <= maxLen) {
       setStartRange(value);
       validateRange(value, endRange);
+
+      if (value.length === maxLen) {
+        if (showRange) {
+          document.getElementById("endRange")?.focus();
+        } else {
+          document.getElementById("numericValue")?.focus();
+        }
+      }
     }
   };
 
@@ -389,9 +398,18 @@ const Index = () => {
   };
 
   const handleSend = () => {
-    const message = `${name}\n${records.join("\n")}`;
+    const formattedRecords = records.map((record) => {
+      if (record.startsWith("GT-")) {
+        return record.replace("GT-", "GT - ");
+      }
+      const [left, count] = record.split("-");
+      const [option, number] = left.split(":");
+      return `${option} - ${number} = ${count}`;
+    });
+    const message = `${name}\n${formattedRecords.join("\n")}`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`whatsapp://send?text=${encodedMessage}`, "_blank");
+    handleClear();
   };
 
   const getDisplayRecords = () => {
@@ -406,6 +424,49 @@ const Index = () => {
   };
 
   const displayRecords = getDisplayRecords();
+
+  const handleDeleteOption = (optionToDelete: string) => {
+    const newOptions = options.filter((opt) => opt !== optionToDelete);
+    // Don't allow deleting the last option for safety, or handle empty state if you prefer
+    if (newOptions.length === 0) {
+      alert("Cannot delete the last option.");
+      return;
+    }
+
+    // Remove from lengths map
+    const newLengths = { ...optionLengths };
+    delete newLengths[optionToDelete];
+
+    setOptions(newOptions);
+    setOptionLengths(newLengths);
+
+    // If selected was deleted, switch to the first available
+    if (selectedOption === optionToDelete) {
+      setSelectedOption(newOptions[0]);
+      // Reset inputs as potentially different length
+      setStartRange("");
+      setEndRange("");
+    }
+  };
+
+  // Long press logic
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handlePointerDown = (option: string) => {
+    longPressTimerRef.current = setTimeout(() => {
+      // Long press detected
+      if (window.confirm(`Delete option "${option}"?`)) {
+        handleDeleteOption(option);
+      }
+    }, 800); // 800ms wait time
+  };
+
+  const handlePointerUpOrLeave = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
 
   return (
     <main className="min-h-screen bg-background px-4 py-6 sm:px-6 sm:py-8">
@@ -423,13 +484,18 @@ const Index = () => {
                 {options.map((option) => (
                   <DropdownMenuItem
                     key={option}
-                    className="dropdown-item"
+                    className="dropdown-item select-none"
                     onClick={() => {
                       setSelectedOption(option);
                       setStartRange("");
                       setEndRange("");
                       setError("");
                     }}
+                    onPointerDown={() => handlePointerDown(option)}
+                    onPointerUp={handlePointerUpOrLeave}
+                    onPointerLeave={handlePointerUpOrLeave}
+                    // Prevent default context menu on long press
+                    onContextMenu={(e) => e.preventDefault()}
                   >
                     {option}
                   </DropdownMenuItem>
@@ -692,7 +758,7 @@ const Index = () => {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="optionName" className="text-right">
-                Name
+                RS
               </Label>
               <input
                 id="optionName"
@@ -704,7 +770,7 @@ const Index = () => {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="optionLength" className="text-right">
-                Length
+                Digit
               </Label>
               <input
                 id="optionLength"
