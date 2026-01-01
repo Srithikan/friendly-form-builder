@@ -166,7 +166,6 @@ const Index = () => {
     setNumericValue("");
     setStartRange("");
     if (showRange) {
-      setShowRange(false);
       setEndRange("");
       setStepValue("");
     }
@@ -179,6 +178,7 @@ const Index = () => {
     // If I leave startRange, and switch to single mode, it's fine.
 
     setError("");
+    document.getElementById("startRange")?.focus();
   };
 
 
