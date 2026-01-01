@@ -405,7 +405,7 @@ const Index = () => {
   const handleSend = () => {
     const formattedRecords = records.map((record) => {
       if (record.startsWith("GT-")) {
-        return record.replace("GT-", "GT - ");
+        return record.replace("GT-", "GT : ");
       }
       const [left, count] = record.split("-");
       const [option, number] = left.split(":");
