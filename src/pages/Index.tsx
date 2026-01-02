@@ -55,8 +55,8 @@ const Index = () => {
   const [showRange, setShowRange] = useState(false);
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
-  const [numericValue, setNumericValue] = useState("");
-  const [stepValue, setStepValue] = useState("");
+  const [numericValue, setNumericValue] = useState("1");
+  const [stepValue, setStepValue] = useState("1");
   const [records, setRecords] = useState<string[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [error, setError] = useState("");
@@ -178,17 +178,17 @@ const Index = () => {
       return [...allDataRecords, `GT-${totalSum}`];
     });
 
-    setNumericValue("");
+    setNumericValue("1");
     setStartRange("");
     if (showRange) {
       setEndRange("");
-      setStepValue("");
+      setStepValue("1");
     }
 
     // Simpler approach requested by thought process:
     setShowRange(false);
     setEndRange("");
-    setStepValue("");
+    setStepValue("1");
     // setStartRange(""); // Optional, but let's leave it to keep previous behavior for single mode?
     // If I leave startRange, and switch to single mode, it's fine.
 
@@ -250,12 +250,12 @@ const Index = () => {
     });
 
     // Clear inputs similar to Add Record
-    setNumericValue("");
+    setNumericValue("1");
     setStartRange("");
     if (showRange) {
       setShowRange(false);
       setEndRange("");
-      setStepValue("");
+      setStepValue("1");
     }
     setError("");
   };
@@ -298,7 +298,7 @@ const Index = () => {
     });
 
     // Clear Inputs
-    setNumericValue("");
+    setNumericValue("1");
     setStartRange("");
     setError("");
   };
@@ -333,7 +333,7 @@ const Index = () => {
       return [...allDataRecords, `GT-${totalSum}`];
     });
 
-    setNumericValue("");
+    setNumericValue("1");
     setError("");
   };
 
@@ -375,8 +375,8 @@ const Index = () => {
     setSelectedIndices(new Set());
     setStartRange("");
     setEndRange("");
-    setNumericValue("");
-    setStepValue("");
+    setNumericValue("1");
+    setStepValue("1");
     setError("");
   };
 
