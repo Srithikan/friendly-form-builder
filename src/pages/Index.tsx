@@ -592,6 +592,7 @@ const Index = () => {
                   inputMode="numeric"
                   value={stepValue}
                   onChange={handleStepValue}
+                  onFocus={(e) => e.target.select()}
                   className="input-field px-2"
                   aria-label="Step Value"
                 />
@@ -610,6 +611,7 @@ const Index = () => {
               value={numericValue}
               onChange={handleNumericValue}
               onKeyDown={handleKeyDown}
+              onFocus={(e) => e.target.select()}
               className="input-field px-2"
               aria-label="Numeric Value"
             />
