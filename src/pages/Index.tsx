@@ -424,7 +424,7 @@ const Index = () => {
       }
       const [left, count] = record.split("-");
       const [option, number] = left.split(":");
-      return `${option} - ${number} = ${count}`;
+      return `${option}  -  ${number}  =  ${count}`;
     });
     const message = `${name}\n${formattedRecords.join("\n")}`;
     const encodedMessage = encodeURIComponent(message);
