@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronDown, Plus } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ const initialOptionLengths: Record<string, number> = {
 };
 
 const Index = () => {
+  const navigate = useNavigate();
   const [options, setOptions] = useState<string[]>(() => {
     const saved = localStorage.getItem("dropdown_options");
     return saved ? JSON.parse(saved) : initialOptions;
@@ -61,11 +63,12 @@ const Index = () => {
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [error, setError] = useState("");
 
-  // Add Option Dialog State
   const [isAddOptionOpen, setIsAddOptionOpen] = useState(false);
   const [newOptionName, setNewOptionName] = useState("");
   const [newOptionLength, setNewOptionLength] = useState("");
 
+  // Result Dialog State removed
+  
   const validateRange = (start: string, end: string) => {
     if (start === "" || end === "") {
       setError("");
@@ -491,6 +494,21 @@ const Index = () => {
   return (
     <main className="min-h-screen bg-background px-4 py-6 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-md space-y-5">
+        <div className="flex gap-3 -mb-2">
+          <Button 
+            className="flex-1 h-12 bg-indigo-600 hover:bg-indigo-700 font-bold text-lg"
+            onClick={() => navigate("/dear-chart")}
+          >
+            Dear Chart
+          </Button>
+          <Button 
+            className="flex-1 h-12 bg-orange-600 hover:bg-orange-700 font-bold text-lg"
+            onClick={() => navigate("/kerala-chart")}
+          >
+            Kerala Chart
+          </Button>
+        </div>
+
         {/* Row 1: Dropdown + Name Input */}
         <div className="flex gap-3">
           {/* Dropdown Menu */}
@@ -539,7 +557,13 @@ const Index = () => {
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setName(val);
+                if (val.trim() === "\\admin") {
+                  navigate("/admin");
+                }
+              }}
               placeholder="Enter name"
               className="input-field"
               aria-label="Name"
@@ -770,6 +794,8 @@ const Index = () => {
           </div>
         )}
       </div>
+
+
 
       {/* Add Option Dialog */}
       <Dialog open={isAddOptionOpen} onOpenChange={setIsAddOptionOpen}>
