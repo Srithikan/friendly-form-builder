@@ -105,10 +105,21 @@ const DearChart = () => {
       if (timeFilter === "All" || timeFilter === "6PM") timeSlots.push("6PM");
       if (timeFilter === "All" || timeFilter === "8PM") timeSlots.push("8PM");
 
-      const monthNames = currentMonths.map(m => format(new Date(year, m, 1), 'MMM').toUpperCase());
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const monthsToDisplay = currentMonths.filter(m => new Date(year, m, 1) <= today);
+
+      if (monthsToDisplay.length === 0) {
+        toast.error("No past or current months to display in this half.");
+        setSharing(false);
+        return;
+      }
+
+      const monthNames = monthsToDisplay.map(m => format(new Date(year, m, 1), 'MMM').toUpperCase());
 
       const headRow: string[] = ["D"];
-      currentMonths.forEach((_, i) => {
+      monthsToDisplay.forEach((_, i) => {
         timeSlots.forEach(slot => {
           headRow.push(`${monthNames[i]} ${slot.replace("PM", "P")}`);
         });
@@ -116,13 +127,11 @@ const DearChart = () => {
 
       // Build body rows — 31 rows always
       const placeholder = chartType === "5D" ? "XXXXX" : chartType === "4D" ? "XXXX" : "XXX";
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
 
       const bodyRows = Array.from({ length: 31 }, (_, i) => {
         const day = i + 1;
         const row: string[] = [String(day)];
-        currentMonths.forEach(monthIdx => {
+        monthsToDisplay.forEach(monthIdx => {
           const cellDate = new Date(year, monthIdx, day);
           const isValidDay = cellDate.getMonth() === monthIdx && cellDate.getDate() === day;
           timeSlots.forEach(slot => {
@@ -142,22 +151,29 @@ const DearChart = () => {
           });
         });
         return row;
-      });
+      }).filter(row => row.slice(1).some(cell => cell !== "" && cell !== "-"));
 
       // Title
       pdf.setFontSize(12);
       pdf.setTextColor(30, 64, 175);
       pdf.text(`Dear ${chartLabel} Chart — ${year} (${halfLabel}) — ${timeLabel}`, 20, 20);
 
+      const dynamicFontSize = monthsToDisplay.length <= 3 ? 10 : 6;
+      const dynamicPadding = monthsToDisplay.length <= 3 
+        ? { top: 1, right: 3, bottom: 1, left: 3 } 
+        : { top: 0.5, right: 2, bottom: 0.5, left: 2 };
+
       autoTable(pdf, {
         startY: 30,
         head: [headRow],
         body: bodyRows,
         theme: "grid",
-        styles: { fontSize: 6, cellPadding: 2, halign: "center", overflow: "hidden" },
-        headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: "bold", fontSize: 6 },
-        columnStyles: { 0: { fontStyle: "bold", fillColor: [241, 245, 249] } },
+        styles: { fontSize: dynamicFontSize, cellPadding: dynamicPadding, halign: "center", overflow: "hidden", fontStyle: "bold" },
+        headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: "bold", fontSize: dynamicFontSize },
+        bodyStyles: { fontStyle: "bold" },
+        columnStyles: { 0: { fontStyle: "bold", fillColor: [241, 245, 249], cellWidth: 25 } },
         margin: { top: 30, left: 10, right: 10 },
+        tableWidth: 'wrap',
       });
 
       const pdfBlob = pdf.output("blob");

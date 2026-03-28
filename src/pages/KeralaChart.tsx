@@ -93,20 +93,29 @@ const KeralaChart = () => {
 
       const chartLabel = chartType === "6D" ? "6Digit" : chartType === "4D" ? "4Digit" : "3Digit";
       const halfLabel = isSecondHalf ? "Jul-Dec" : "Jan-Jun";
-      const monthNames = currentMonths.map(m => format(new Date(year, m, 1), 'MMM').toUpperCase());
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const monthsToDisplay = currentMonths.filter(m => new Date(year, m, 1) <= today);
+
+      if (monthsToDisplay.length === 0) {
+        toast.error("No past or current months to display in this half.");
+        setSharing(false);
+        return;
+      }
+
+      const monthNames = monthsToDisplay.map(m => format(new Date(year, m, 1), 'MMM').toUpperCase());
 
       // Build header row
       const headRow: string[] = ["D", ...monthNames];
 
       // Build body rows — always 31 rows
       const placeholder = chartType === "6D" ? "XXXXXX" : chartType === "4D" ? "XXXX" : "XXX";
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
 
       const bodyRows = Array.from({ length: 31 }, (_, i) => {
         const day = i + 1;
         const row: string[] = [String(day)];
-        currentMonths.forEach(monthIdx => {
+        monthsToDisplay.forEach(monthIdx => {
           const cellDate = new Date(year, monthIdx, day);
           const isValidDay = cellDate.getMonth() === monthIdx && cellDate.getDate() === day;
           if (!isValidDay) {
@@ -124,22 +133,29 @@ const KeralaChart = () => {
           }
         });
         return row;
-      });
+      }).filter(row => row.slice(1).some(cell => cell !== "" && cell !== "-"));
 
       // Title
       pdf.setFontSize(12);
       pdf.setTextColor(234, 88, 12);
       pdf.text(`Kerala ${chartLabel} Chart — ${year} (${halfLabel})`, 20, 20);
 
+      const dynamicFontSize = monthsToDisplay.length <= 3 ? 11 : 6.5;
+      const dynamicPadding = monthsToDisplay.length <= 3 
+        ? { top: 1, right: 3, bottom: 1, left: 3 } 
+        : { top: 0.75, right: 2, bottom: 0.75, left: 2 };
+
       autoTable(pdf, {
         startY: 30,
         head: [headRow],
         body: bodyRows,
         theme: "grid",
-        styles: { fontSize: 6.5, cellPadding: 2.5, halign: "center", overflow: "hidden" },
-        headStyles: { fillColor: [234, 88, 12], textColor: 255, fontStyle: "bold", fontSize: 7 },
-        columnStyles: { 0: { fontStyle: "bold", fillColor: [255, 247, 237] } },
+        styles: { fontSize: dynamicFontSize, cellPadding: dynamicPadding, halign: "center", overflow: "hidden", fontStyle: "bold" },
+        headStyles: { fillColor: [234, 88, 12], textColor: 255, fontStyle: "bold", fontSize: dynamicFontSize },
+        bodyStyles: { fontStyle: "bold" },
+        columnStyles: { 0: { fontStyle: "bold", fillColor: [255, 247, 237], cellWidth: 30 } },
         margin: { top: 30, left: 10, right: 10 },
+        tableWidth: 'wrap',
       });
 
       const pdfBlob = pdf.output("blob");

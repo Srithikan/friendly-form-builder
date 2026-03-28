@@ -704,10 +704,10 @@ const Index = () => {
               <table className="w-full text-sm text-left">
                 <thead className="bg-muted text-muted-foreground font-medium">
                   <tr>
-                    <th className="px-3 py-2">Option</th>
-                    <th className="px-3 py-2">Number</th>
-                    <th className="px-3 py-2">Count</th>
-                    <th className="px-3 py-2 w-10">Select</th>
+                    <th className="px-3 py-2 text-left">Option</th>
+                    <th className="px-3 py-2 text-right">Number</th>
+                    <th className="px-3 py-2 text-right">Count</th>
+                    <th className="px-3 py-2 w-10 text-center">Select</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -718,10 +718,10 @@ const Index = () => {
                     if (isGT) {
                       const count = record.split("-")[1];
                       return (
-                        <tr key={index} className="bg-muted/50 font-bold">
+                        <tr key={index} className="bg-muted/50 font-medium">
                           <td className="px-3 py-2">GT</td>
                           <td className="px-3 py-2 text-center">-</td>
-                          <td className="px-3 py-2">{count}</td>
+                          <td className="px-3 py-2 text-right font-mono">{count}</td>
                           <td className="px-3 py-2 text-center">
                             <input
                               type="checkbox"
@@ -740,10 +740,10 @@ const Index = () => {
                     const [option, number] = leftPart.split(":");
 
                     return (
-                      <tr key={index}>
+                      <tr key={index} className="font-medium">
                         <td className="px-3 py-2">{option}</td>
-                        <td className="px-3 py-2">{number}</td>
-                        <td className="px-3 py-2">{count}</td>
+                        <td className="px-3 py-2 text-right font-mono">{number}</td>
+                        <td className="px-3 py-2 text-right font-mono">{count}</td>
                         <td className="px-3 py-2 text-center">
                           <input
                             type="checkbox"
