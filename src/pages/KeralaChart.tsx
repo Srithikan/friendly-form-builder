@@ -90,39 +90,71 @@ const KeralaChart = () => {
 
     try {
       const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.width;
+      const pageHeight = pdf.internal.pageSize.height;
 
-      const chartLabel = chartType === "6D" ? "6Digit" : chartType === "4D" ? "4Digit" : "3Digit";
-      const halfLabel = isSecondHalf ? "Jul-Dec" : "Jan-Jun";
+      const chartLabel = chartType === "6D" ? "6DIGIT" : chartType === "4D" ? "4DIGIT" : "3DIGIT";
+      
+      // Fetch all year data to ensure 12 months are available in the PDF
+      const startDate = `${year}-01-01`;
+      const endDate = `${year}-12-31`;
+      
+      const { data: yearData, error } = await supabase
+        .from('kerala_results')
+        .select('*')
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (error) throw error;
+      const resultsData = yearData || [];
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const monthsToDisplay = currentMonths.filter(m => new Date(year, m, 1) <= today);
+      // We want to show all 12 months in the PDF
+      const allMonths = Array.from({ length: 12 }, (_, i) => i);
+      const monthsToDisplay = allMonths.filter(m => new Date(year, m, 1) <= today);
 
       if (monthsToDisplay.length === 0) {
-        toast.error("No past or current months to display in this half.");
+        toast.error("No data available for this year.");
         setSharing(false);
         return;
       }
 
-      const monthNames = monthsToDisplay.map(m => format(new Date(year, m, 1), 'MMM').toUpperCase());
+      // Use the specific month naming style from the image (truncated or full)
+      const getMonthLabel = (mIdx: number) => {
+        const full = format(new Date(year, mIdx, 1), 'MMMM');
+        if (full === "September") return "Sep";
+        if (full === "August") return "Augu";
+        return full.length > 5 ? full.slice(0, 4) : full;
+      };
 
-      // Build header row
-      const headRow: string[] = ["D", ...monthNames];
+      const monthNames = monthsToDisplay.map(m => getMonthLabel(m));
 
-      // Build body rows — always 31 rows
-      const placeholder = chartType === "6D" ? "XXXXXX" : chartType === "4D" ? "XXXX" : "XXX";
+      // Header configuration (Salmon color: #fecaca)
+      const headRow: any[] = [
+        { content: "Date", styles: { fillColor: [254, 202, 202], textColor: [0, 0, 0], fontStyle: "bold", halign: "center" } },
+        ...monthNames.map(name => ({
+          content: name,
+          styles: { halign: "center", fillColor: [254, 202, 202], textColor: [0, 0, 0], fontStyle: "bold" }
+        }))
+      ];
 
+      // Build body rows
+      const placeholder = chartType === "6D" ? "******" : chartType === "4D" ? "****" : "***";
       const bodyRows = Array.from({ length: 31 }, (_, i) => {
         const day = i + 1;
-        const row: string[] = [String(day)];
+        const row: any[] = [
+          { content: String(day), styles: { fillColor: [254, 202, 202], textColor: [0, 0, 0], fontStyle: "bold", halign: "center" } }
+        ];
         monthsToDisplay.forEach(monthIdx => {
           const cellDate = new Date(year, monthIdx, day);
           const isValidDay = cellDate.getMonth() === monthIdx && cellDate.getDate() === day;
           if (!isValidDay) {
-            row.push("-");
+            row.push("******");
           } else {
             const dateStr = format(cellDate, 'yyyy-MM-dd');
-            const entry = data.find(d => d.date === dateStr);
+            const entry = resultsData.find(d => d.date === dateStr);
             if (entry) {
               row.push(sliceResult(entry.result, chartType));
             } else {
@@ -133,40 +165,64 @@ const KeralaChart = () => {
           }
         });
         return row;
-      }).filter(row => row.slice(1).some(cell => cell !== "" && cell !== "-"));
+      }).filter(row => row.slice(1).some(cell => {
+        const val = typeof cell === 'object' ? cell.content : cell;
+        return val !== "" && val !== "******";
+      }));
 
-      // Title
-      pdf.setFontSize(12);
-      pdf.setTextColor(234, 88, 12);
-      pdf.text(`Kerala ${chartLabel} Chart — ${year} (${halfLabel})`, 20, 20);
+      // Top Banner (Dark Red: #991b1b)
+      pdf.setFillColor(153, 27, 27);
+      pdf.rect(10, 10, pageWidth - 20, 30, "F");
+      pdf.setFontSize(16);
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont("helvetica", "bold");
+      // Text removed as per user request
 
-      const dynamicFontSize = monthsToDisplay.length <= 3 ? 11 : 6.5;
-      const dynamicPadding = monthsToDisplay.length <= 3 
-        ? { top: 1, right: 3, bottom: 1, left: 3 } 
-        : { top: 0.75, right: 2, bottom: 0.75, left: 2 };
+      // Calculate fonts for up to 13 columns (Date + 12 months)
+      const dynamicFontSize = monthsToDisplay.length > 7 ? 7.5 : 10;
+      const dynamicPadding = { top: 2, right: 2, bottom: 2, left: 2 };
 
       autoTable(pdf, {
-        startY: 30,
+        startY: 50,
         head: [headRow],
         body: bodyRows,
         theme: "grid",
-        styles: { fontSize: dynamicFontSize, cellPadding: dynamicPadding, halign: "center", overflow: "hidden", fontStyle: "bold" },
-        headStyles: { fillColor: [234, 88, 12], textColor: 255, fontStyle: "bold", fontSize: dynamicFontSize },
-        bodyStyles: { fontStyle: "bold" },
-        columnStyles: { 0: { fontStyle: "bold", fillColor: [255, 247, 237], cellWidth: 30 } },
-        margin: { top: 30, left: 10, right: 10 },
-        tableWidth: 'wrap',
+        styles: { 
+          fontSize: dynamicFontSize, 
+          cellPadding: dynamicPadding, 
+          halign: "center", 
+          overflow: "hidden", 
+          fontStyle: "bold",
+          lineWidth: 0.5,
+          lineColor: [100, 100, 100] // Darker borders
+        },
+        columnStyles: { 
+          0: { fontStyle: "bold", cellWidth: 35 } 
+        },
+        margin: { top: 50, left: 10, right: 10, bottom: 40 },
+        tableWidth: 'auto',
       });
 
+      // Footer
+      const finalY = (pdf as any).lastAutoTable.finalY + 10;
+      const footerY = Math.max(finalY, pageHeight - 35);
+      
+      pdf.setFillColor(153, 27, 27);
+      pdf.rect(10, footerY, pageWidth - 20, 25, "F");
+      pdf.setFontSize(11);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(`KERALA CHART ${chartLabel} - ${year}`, 30, footerY + 17);
+      pdf.text(`Telegram: guessinggrp`, pageWidth - 30, footerY + 17, { align: "right" });
+
       const pdfBlob = pdf.output("blob");
-      const fileName = `Kerala_${chartLabel}_${year}_${halfLabel}.pdf`;
+      const fileName = `Kerala_${chartLabel}_${year}.pdf`;
       const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `Kerala ${chartLabel} Chart ${year}`,
-          text: `Kerala ${chartLabel} results for ${year} (${halfLabel})`,
+          text: `Kerala ${chartLabel} Chart results for ${year}`,
         });
         toast.success("Shared successfully!");
       } else {

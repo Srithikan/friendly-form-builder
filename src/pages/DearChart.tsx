@@ -94,12 +94,13 @@ const DearChart = () => {
 
     try {
       const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.width;
+      const pageHeight = pdf.internal.pageSize.height;
 
-      const chartLabel = chartType === "5D" ? "5Digit" : chartType === "4D" ? "4Digit" : "3Digit";
-      const halfLabel = isSecondHalf ? "Jul-Dec" : "Jan-Jun";
+      const chartLabel = chartType === "5D" ? "COMBINATION 5DIGIT" : chartType === "4D" ? "4DIGIT" : "3DIGIT";
       const timeLabel = timeFilter === "All" ? "Full Chart" : timeFilter;
 
-      // Build header
+      // Header configuration
       const timeSlots: ("1PM" | "6PM" | "8PM")[] = [];
       if (timeFilter === "All" || timeFilter === "1PM") timeSlots.push("1PM");
       if (timeFilter === "All" || timeFilter === "6PM") timeSlots.push("6PM");
@@ -116,21 +117,37 @@ const DearChart = () => {
         return;
       }
 
-      const monthNames = monthsToDisplay.map(m => format(new Date(year, m, 1), 'MMM').toUpperCase());
+      const monthNames = monthsToDisplay.map(m => format(new Date(year, m, 1), 'MMMM').toUpperCase());
 
-      const headRow: string[] = ["D"];
+      // Build double header
+      const headRow1: any[] = [
+        { content: "D", styles: { fillColor: [253, 240, 1], textColor: [0, 0, 0] } }
+      ];
+      const headRow2: any[] = [
+        { content: "", styles: { fillColor: [30, 64, 175] } }
+      ];
+
       monthsToDisplay.forEach((_, i) => {
+        headRow1.push({
+          content: monthNames[i],
+          colSpan: timeSlots.length,
+          styles: { halign: "center", fillColor: [253, 240, 1], textColor: [0, 0, 0], fontStyle: "bold" }
+        });
         timeSlots.forEach(slot => {
-          headRow.push(`${monthNames[i]} ${slot.replace("PM", "P")}`);
+          headRow2.push({
+            content: slot,
+            styles: { halign: "center", fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" }
+          });
         });
       });
 
-      // Build body rows — 31 rows always
+      // Build body rows
       const placeholder = chartType === "5D" ? "XXXXX" : chartType === "4D" ? "XXXX" : "XXX";
-
       const bodyRows = Array.from({ length: 31 }, (_, i) => {
         const day = i + 1;
-        const row: string[] = [String(day)];
+        const row: any[] = [
+          { content: String(day), styles: { fillColor: [253, 240, 1], textColor: [0, 0, 0], fontStyle: "bold" } }
+        ];
         monthsToDisplay.forEach(monthIdx => {
           const cellDate = new Date(year, monthIdx, day);
           const isValidDay = cellDate.getMonth() === monthIdx && cellDate.getDate() === day;
@@ -151,40 +168,65 @@ const DearChart = () => {
           });
         });
         return row;
-      }).filter(row => row.slice(1).some(cell => cell !== "" && cell !== "-"));
+      }).filter(row => row.slice(1).some(cell => {
+        const val = typeof cell === 'object' ? cell.content : cell;
+        return val !== "" && val !== "-";
+      }));
 
-      // Title
-      pdf.setFontSize(12);
-      pdf.setTextColor(30, 64, 175);
-      pdf.text(`Dear ${chartLabel} Chart — ${year} (${halfLabel}) — ${timeLabel}`, 20, 20);
+      // Top Banner
+      pdf.setFillColor(30, 64, 175);
+      pdf.rect(10, 10, pageWidth - 20, 25, "F");
+      pdf.setFontSize(13);
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont("helvetica", "bold");
+      pdf.text(`DEAR             COMBINATION             CHART             ${chartType === "5D" ? "5DIGIT" : chartType}`, pageWidth / 2, 27, { align: "center" });
 
-      const dynamicFontSize = monthsToDisplay.length <= 3 ? 10 : 6;
+      const dynamicFontSize = monthsToDisplay.length <= 3 ? 10 : 8;
       const dynamicPadding = monthsToDisplay.length <= 3 
-        ? { top: 1, right: 3, bottom: 1, left: 3 } 
-        : { top: 0.5, right: 2, bottom: 0.5, left: 2 };
+        ? { top: 2, right: 3, bottom: 2, left: 3 } 
+        : { top: 1, right: 2, bottom: 1, left: 2 };
 
       autoTable(pdf, {
-        startY: 30,
-        head: [headRow],
+        startY: 40,
+        head: [headRow1, headRow2],
         body: bodyRows,
         theme: "grid",
-        styles: { fontSize: dynamicFontSize, cellPadding: dynamicPadding, halign: "center", overflow: "hidden", fontStyle: "bold" },
-        headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: "bold", fontSize: dynamicFontSize },
-        bodyStyles: { fontStyle: "bold" },
-        columnStyles: { 0: { fontStyle: "bold", fillColor: [241, 245, 249], cellWidth: 25 } },
-        margin: { top: 30, left: 10, right: 10 },
-        tableWidth: 'wrap',
+        styles: { 
+          fontSize: dynamicFontSize, 
+          cellPadding: dynamicPadding, 
+          halign: "center", 
+          overflow: "hidden", 
+          fontStyle: "bold",
+          lineWidth: 0.5,
+          lineColor: [200, 200, 200]
+        },
+        columnStyles: { 
+          0: { fontStyle: "bold", cellWidth: 25 } 
+        },
+        margin: { top: 40, left: 10, right: 10, bottom: 40 },
+        tableWidth: 'auto',
       });
 
+      // Footer
+      const finalY = (pdf as any).lastAutoTable.finalY + 10;
+      const footerY = Math.max(finalY, pageHeight - 35);
+      
+      pdf.setFillColor(30, 64, 175);
+      pdf.rect(10, footerY, pageWidth - 20, 25, "F");
+      pdf.setFontSize(11);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(`${chartLabel}`, 30, footerY + 17);
+      pdf.text(`Telegram: guessinggrp`, pageWidth - 30, footerY + 17, { align: "right" });
+
       const pdfBlob = pdf.output("blob");
-      const fileName = `Dear_${chartLabel}_${timeLabel}_${year}_${halfLabel}.pdf`;
+      const fileName = `Dear_${chartLabel}_${year}.pdf`;
       const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `Dear ${chartLabel} Chart ${year}`,
-          text: `Kerala ${chartLabel} results for ${year} (${halfLabel})`,
+          text: `Dear ${chartLabel} Chart results for ${year}`,
         });
         toast.success("Shared successfully!");
       } else {
