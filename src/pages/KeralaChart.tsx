@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, Home, Table as TableIcon, Share2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format, getYear, getMonth, isSameDay, startOfMonth, endOfMonth } from "date-fns";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { toast } from "sonner";
 
 const MONTHS_FIRST_HALF = [0, 1, 2, 3, 4, 5]; // Jan - Jun
@@ -25,6 +24,7 @@ const KeralaChart = () => {
   const [chartType, setChartType] = useState<ChartType>("6D");
   const [isLoading, setIsLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
+  const captureRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -64,8 +64,7 @@ const KeralaChart = () => {
 
   const getResult = (day: number, monthIndex: number) => {
     const cellDate = new Date(year, monthIndex, day);
-    // Ensure the date is valid for the month (e.g., handles Feb 30)
-    if (cellDate.getMonth() !== monthIndex) return "XXXXXX";
+    if (cellDate.getMonth() !== monthIndex) return "******";
     
     const dateStr = format(cellDate, 'yyyy-MM-dd');
     const entry = data.find(d => d.date === dateStr);
@@ -79,163 +78,95 @@ const KeralaChart = () => {
     // Future and Today: remain empty until result is entered
     if (cellDate >= today) return ""; 
     
-    const placeholder = chartType === "6D" ? "XXXXXX" :
-                       chartType === "4D" ? "XXXX" : "XXX";
+    const placeholder = chartType === "6D" ? "******" :
+                       chartType === "4D" ? "****" : "***";
     return placeholder;
   };
 
-  const handleShare = async () => {
+  const handleShareImage = async () => {
+    if (!captureRef.current) return;
+    
     setSharing(true);
-    toast.info("Generating PDF...");
+    toast.info("Generating Image...");
 
     try {
-      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.width;
-      const pageHeight = pdf.internal.pageSize.height;
-
-      const chartLabel = chartType === "6D" ? "6DIGIT" : chartType === "4D" ? "4DIGIT" : "3DIGIT";
+      // Temporarily remove scrollbars and max-height for capture
+      const container = captureRef.current;
+      const tableContainer = container.querySelector('#kerala-table-container') as HTMLElement;
       
-      // Fetch all year data to ensure 12 months are available in the PDF
-      const startDate = `${year}-01-01`;
-      const endDate = `${year}-12-31`;
+      const originalContainerStyle = container.getAttribute('style');
+      const originalTableStyle = tableContainer?.getAttribute('style');
       
-      const { data: yearData, error } = await supabase
-        .from('kerala_results')
-        .select('*')
-        .gte('date', startDate)
-        .lte('date', endDate);
-
-      if (error) throw error;
-      const resultsData = yearData || [];
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // We want to show all 12 months in the PDF
-      const allMonths = Array.from({ length: 12 }, (_, i) => i);
-      const monthsToDisplay = allMonths.filter(m => new Date(year, m, 1) <= today);
-
-      if (monthsToDisplay.length === 0) {
-        toast.error("No data available for this year.");
-        setSharing(false);
-        return;
-      }
-
-      // Use the specific month naming style from the image (truncated or full)
-      const getMonthLabel = (mIdx: number) => {
-        const full = format(new Date(year, mIdx, 1), 'MMMM');
-        if (full === "September") return "Sep";
-        if (full === "August") return "Augu";
-        return full.length > 5 ? full.slice(0, 4) : full;
-      };
-
-      const monthNames = monthsToDisplay.map(m => getMonthLabel(m));
-
-      // Header configuration (Salmon color: #fecaca)
-      const headRow: any[] = [
-        { content: "Date", styles: { fillColor: [254, 202, 202], textColor: [0, 0, 0], fontStyle: "bold", halign: "center" } },
-        ...monthNames.map(name => ({
-          content: name,
-          styles: { halign: "center", fillColor: [254, 202, 202], textColor: [0, 0, 0], fontStyle: "bold" }
-        }))
-      ];
-
-      // Build body rows
-      const placeholder = chartType === "6D" ? "******" : chartType === "4D" ? "****" : "***";
-      const bodyRows = Array.from({ length: 31 }, (_, i) => {
-        const day = i + 1;
-        const row: any[] = [
-          { content: String(day), styles: { fillColor: [254, 202, 202], textColor: [0, 0, 0], fontStyle: "bold", halign: "center" } }
-        ];
-        monthsToDisplay.forEach(monthIdx => {
-          const cellDate = new Date(year, monthIdx, day);
-          const isValidDay = cellDate.getMonth() === monthIdx && cellDate.getDate() === day;
-          if (!isValidDay) {
-            row.push("******");
-          } else {
-            const dateStr = format(cellDate, 'yyyy-MM-dd');
-            const entry = resultsData.find(d => d.date === dateStr);
-            if (entry) {
-              row.push(sliceResult(entry.result, chartType));
-            } else {
-              const cd = new Date(cellDate);
-              cd.setHours(0, 0, 0, 0);
-              row.push(cd >= today ? "" : placeholder);
-            }
-          }
-        });
-        return row;
-      }).filter(row => row.slice(1).some(cell => {
-        const val = typeof cell === 'object' ? cell.content : cell;
-        return val !== "" && val !== "******";
-      }));
-
-      // Top Banner (Dark Red: #991b1b)
-      pdf.setFillColor(153, 27, 27);
-      pdf.rect(10, 10, pageWidth - 20, 30, "F");
-      pdf.setFontSize(16);
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont("helvetica", "bold");
-      // Text removed as per user request
-
-      // Calculate fonts for up to 13 columns (Date + 12 months)
-      const dynamicFontSize = monthsToDisplay.length > 7 ? 7.5 : 10;
-      const dynamicPadding = { top: 2, right: 2, bottom: 2, left: 2 };
-
-      autoTable(pdf, {
-        startY: 50,
-        head: [headRow],
-        body: bodyRows,
-        theme: "grid",
-        styles: { 
-          fontSize: dynamicFontSize, 
-          cellPadding: dynamicPadding, 
-          halign: "center", 
-          overflow: "hidden", 
-          fontStyle: "bold",
-          lineWidth: 0.5,
-          lineColor: [100, 100, 100] // Darker borders
-        },
-        columnStyles: { 
-          0: { fontStyle: "bold", cellWidth: 35 } 
-        },
-        margin: { top: 50, left: 10, right: 10, bottom: 40 },
-        tableWidth: 'auto',
+      // Disable sticky positioning for clean capture
+      const stickyElements = container.querySelectorAll('.sticky');
+      const originalStickyStyles: string[] = [];
+      stickyElements.forEach((el, i) => {
+        originalStickyStyles[i] = (el as HTMLElement).getAttribute('style') || '';
+        (el as HTMLElement).style.position = 'static';
+        (el as HTMLElement).style.zIndex = 'auto';
       });
 
-      // Footer
-      const finalY = (pdf as any).lastAutoTable.finalY + 10;
-      const footerY = Math.max(finalY, pageHeight - 35);
-      
-      pdf.setFillColor(153, 27, 27);
-      pdf.rect(10, footerY, pageWidth - 20, 25, "F");
-      pdf.setFontSize(11);
-      pdf.setTextColor(255, 255, 255);
-      pdf.text(`KERALA CHART ${chartLabel} - ${year}`, 30, footerY + 17);
-      pdf.text(`Telegram: guessinggrp`, pageWidth - 30, footerY + 17, { align: "right" });
+      container.style.height = 'auto';
+      container.style.maxHeight = 'none';
+      if (tableContainer) {
+        tableContainer.style.maxHeight = 'none';
+        tableContainer.style.overflow = 'visible';
+      }
 
-      const pdfBlob = pdf.output("blob");
-      const fileName = `Kerala_${chartLabel}_${year}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: "application/pdf" });
+      const canvas = await html2canvas(container, {
+        scale: 3, // Higher quality
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: container.scrollWidth,
+        windowHeight: container.scrollHeight
+      });
+
+      // Restore original styles
+      if (originalContainerStyle) {
+        container.setAttribute('style', originalContainerStyle);
+      } else {
+        container.removeAttribute('style');
+      }
+
+      if (tableContainer) {
+        if (originalTableStyle) {
+          tableContainer.setAttribute('style', originalTableStyle);
+        } else {
+          tableContainer.removeAttribute('style');
+        }
+      }
+
+      stickyElements.forEach((el, i) => {
+        if (originalStickyStyles[i]) {
+          (el as HTMLElement).setAttribute('style', originalStickyStyles[i]);
+        } else {
+          (el as HTMLElement).removeAttribute('style');
+        }
+      });
+
+      const imageUrl = canvas.toDataURL("image/png");
+      const blob = await (await fetch(imageUrl)).blob();
+      const fileName = `Kerala_Chart_${chartType}_${year}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
 
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `Kerala ${chartLabel} Chart ${year}`,
-          text: `Kerala ${chartLabel} Chart results for ${year}`,
+          title: `Kerala ${chartType} Chart ${year}`,
+          text: `Kerala ${chartType} Chart results for ${year}`,
         });
         toast.success("Shared successfully!");
       } else {
-        const url = URL.createObjectURL(pdfBlob);
         const link = document.createElement("a");
-        link.href = url;
+        link.href = imageUrl;
         link.download = fileName;
         link.click();
-        toast.success("PDF downloaded!");
+        toast.success("Image downloaded!");
       }
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate PDF.");
+      console.error("Error generating image:", error);
+      toast.error("Failed to generate image.");
     } finally {
       setSharing(false);
     }
@@ -313,7 +244,7 @@ const KeralaChart = () => {
                 <Button 
                   variant="default"
                   size="sm"
-                  onClick={handleShare}
+                  onClick={handleShareImage}
                   disabled={sharing}
                   className="h-9 sm:h-10 bg-green-600 hover:bg-green-700 text-white shadow-md transition-all active:scale-95 flex-none px-4 rounded-lg"
                 >
@@ -322,7 +253,7 @@ const KeralaChart = () => {
                   ) : (
                     <>
                       <Share2 className="mr-2 h-4 w-4" />
-                      <span className="hidden sm:inline">Share PDF</span>
+                      <span className="hidden sm:inline">Share Image</span>
                       <span className="sm:hidden">Share</span>
                     </>
                   )}
@@ -347,45 +278,64 @@ const KeralaChart = () => {
           </div>
         </div>
 
-        <div id="kerala-table-container" className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xl overflow-y-auto max-h-[75vh] relative custom-scrollbar" ref={tableRef}>
-          <table className="min-w-max w-full border-collapse text-[10px] sm:text-[11px] lg:text-sm">
-            <thead className="bg-orange-600 text-white sticky top-0 z-30 shadow-sm">
-              <tr>
-                <th className="border border-white/20 p-1.5 sm:p-2 sticky left-0 bg-orange-600 z-40 min-w-[25px] sm:min-w-[40px]">D</th>
-                {currentMonths.map(monthIdx => (
-                  <th key={monthIdx} className="border border-white/20 p-1 sm:p-2 uppercase min-w-[80px] sm:min-w-[120px]">
-                    {format(new Date(year, monthIdx, 1), 'MMM')}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {days.map(day => (
-                <tr key={day} className="hover:bg-orange-50/30 transition-colors group">
-                  <td className="border border-slate-200 p-1 text-center font-black bg-slate-50 sticky left-0 z-20 shadow-[1px_0_3px_rgba(0,0,0,0.1)] group-hover:bg-orange-50 transition-colors">
-                    {day}
-                  </td>
-                  {currentMonths.map(monthIdx => {
-                    const result = getResult(day, monthIdx);
-                    // Optimized check for valid day of month
-                    const date = new Date(year, monthIdx, day);
-                    const isValidDay = date.getFullYear() === year && date.getMonth() === monthIdx && date.getDate() === day;
-                    
-                    return (
-                      <td 
-                        key={`${monthIdx}-${day}`}
-                        className={`border border-slate-200 p-0.5 sm:p-1 text-center font-mono min-w-[80px] sm:min-w-[120px] ${!isValidDay ? 'bg-slate-100/50 text-slate-400' : ''}`}
-                      >
-                        <span className="scale-95 sm:scale-100 inline-block font-bold">
-                          {isValidDay ? result : "-"}
-                        </span>
-                      </td>
-                    );
-                  })}
+        <div ref={captureRef} className="bg-white p-2">
+          {/* Chart Header - Matching Kerala Red Style */}
+          <div className="bg-[#991b1b] text-white py-2 px-6 mb-1 flex justify-between items-center font-black text-sm sm:text-xl tracking-[0.2em] uppercase">
+            <span>KERALA</span>
+            <span>COMBINATION</span>
+            <span>CHART</span>
+            <span>{chartType === "6D" ? "6DIGIT" : chartType}</span>
+          </div>
+
+          <div id="kerala-table-container" className="overflow-x-auto border-[1.5px] border-black bg-white overflow-y-auto max-h-[75vh] relative custom-scrollbar" ref={tableRef}>
+            <table className="min-w-max w-full border-collapse text-xs sm:text-sm">
+              <thead className="bg-[#991b1b] text-white sticky top-0 z-30 font-black">
+                <tr>
+                  <th className="border-[1px] border-black py-2 sticky left-0 bg-[#fecaca] text-black z-40 min-w-[25px] sm:min-w-[40px] align-middle font-black leading-none" rowSpan={2}>D</th>
+                  {currentMonths.map(monthIdx => (
+                    <th 
+                      key={monthIdx} 
+                      className="border-[1px] border-black py-2 uppercase bg-[#fecaca] text-black align-middle font-black leading-none"
+                    >
+                      {format(new Date(year, monthIdx, 1), 'MMMM')}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {days.map(day => (
+                  <tr key={day} className="group">
+                    <td className="border-[1px] border-black py-1 sm:py-2 text-center align-middle font-black bg-[#fecaca] text-black sticky left-0 z-20 leading-none">
+                      {day}
+                    </td>
+                    {currentMonths.map((monthIdx, i) => {
+                      const isEven = i % 2 === 0;
+                      const cellBgColor = isEven ? '#ffffff' : '#fee2e2';
+                      const result = getResult(day, monthIdx);
+                      const date = new Date(year, monthIdx, day);
+                      const isValidDay = date.getFullYear() === year && date.getMonth() === monthIdx && date.getDate() === day;
+                      
+                      return (
+                        <td 
+                          key={`${monthIdx}-${day}`}
+                          className="border-[1px] border-black py-2.5 text-center align-middle font-black min-w-[80px] sm:min-w-[120px] text-black leading-none uppercase"
+                          style={{ backgroundColor: cellBgColor }}
+                        >
+                          {isValidDay ? result : "-"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Chart Footer - Matching Kerala Style */}
+          <div className="bg-[#991b1b] text-white py-2 px-6 mt-1 flex justify-between items-center font-black text-[10px] sm:text-xs tracking-wide">
+            <span>KERALA {chartType === "6D" ? "6DIGIT" : chartType}</span>
+            <span>Telegram: guessinggrp</span>
+          </div>
         </div>
 
       </div>

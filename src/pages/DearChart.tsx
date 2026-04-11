@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getYear, getMonth, isSameDay } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { toast } from "sonner";
 
 const MONTHS_FIRST_HALf = [0, 1, 2, 3, 4, 5]; // Jan - Jun
@@ -28,6 +29,7 @@ const DearChart = () => {
   const [data, setData] = useState<ResultData[]>([]);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
+  const captureRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -83,166 +85,103 @@ const DearChart = () => {
     // Future and Today: remain empty until result is entered
     if (cellDate >= today) return ""; 
     
-    const placeholder = chartType === "5D" ? "XXXXX" : 
-                       chartType === "4D" ? "XXXX" : "XXX";
+    const placeholder = chartType === "5D" ? "xxxxx" : 
+                       chartType === "4D" ? "xxxx" : "xxx";
     return placeholder;
   };
 
-  const handleShare = async () => {
+  const handleShareImage = async () => {
+    if (!captureRef.current) return;
+    
     setSharing(true);
-    toast.info("Generating PDF...");
+    toast.info("Generating Image...");
 
     try {
-      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.width;
-      const pageHeight = pdf.internal.pageSize.height;
-
-      const chartLabel = chartType === "5D" ? "COMBINATION 5DIGIT" : chartType === "4D" ? "4DIGIT" : "3DIGIT";
-      const timeLabel = timeFilter === "All" ? "Full Chart" : timeFilter;
-
-      // Header configuration
-      const timeSlots: ("1PM" | "6PM" | "8PM")[] = [];
-      if (timeFilter === "All" || timeFilter === "1PM") timeSlots.push("1PM");
-      if (timeFilter === "All" || timeFilter === "6PM") timeSlots.push("6PM");
-      if (timeFilter === "All" || timeFilter === "8PM") timeSlots.push("8PM");
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Temporarily remove scrollbars and max-height for capture
+      const container = captureRef.current;
+      const tableContainer = container.querySelector('#dear-table-container') as HTMLElement;
       
-      const monthsToDisplay = currentMonths.filter(m => new Date(year, m, 1) <= today);
+      const originalContainerStyle = container.getAttribute('style');
+      const originalTableStyle = tableContainer?.getAttribute('style');
+      
+      // Disable sticky positioning for clean capture
+      const stickyElements = container.querySelectorAll('.sticky');
+      const originalStickyStyles: string[] = [];
+      stickyElements.forEach((el, i) => {
+        originalStickyStyles[i] = (el as HTMLElement).getAttribute('style') || '';
+        (el as HTMLElement).style.position = 'static';
+        (el as HTMLElement).style.zIndex = 'auto';
+      });
 
-      if (monthsToDisplay.length === 0) {
-        toast.error("No past or current months to display in this half.");
-        setSharing(false);
-        return;
+      container.style.height = 'auto';
+      container.style.maxHeight = 'none';
+      if (tableContainer) {
+        tableContainer.style.maxHeight = 'none';
+        tableContainer.style.overflow = 'visible';
       }
 
-      const monthNames = monthsToDisplay.map(m => format(new Date(year, m, 1), 'MMMM').toUpperCase());
-
-      // Build double header
-      const headRow1: any[] = [
-        { content: "D", styles: { fillColor: [253, 240, 1], textColor: [0, 0, 0] } }
-      ];
-      const headRow2: any[] = [
-        { content: "", styles: { fillColor: [30, 64, 175] } }
-      ];
-
-      monthsToDisplay.forEach((_, i) => {
-        headRow1.push({
-          content: monthNames[i],
-          colSpan: timeSlots.length,
-          styles: { halign: "center", fillColor: [253, 240, 1], textColor: [0, 0, 0], fontStyle: "bold" }
-        });
-        timeSlots.forEach(slot => {
-          headRow2.push({
-            content: slot,
-            styles: { halign: "center", fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" }
-          });
-        });
+      const canvas = await html2canvas(container, {
+        scale: 3, // Even higher quality for boldness
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: container.scrollWidth,
+        windowHeight: container.scrollHeight
       });
 
-      // Build body rows
-      const placeholder = chartType === "5D" ? "XXXXX" : chartType === "4D" ? "XXXX" : "XXX";
-      const bodyRows = Array.from({ length: 31 }, (_, i) => {
-        const day = i + 1;
-        const row: any[] = [
-          { content: String(day), styles: { fillColor: [253, 240, 1], textColor: [0, 0, 0], fontStyle: "bold" } }
-        ];
-        monthsToDisplay.forEach(monthIdx => {
-          const cellDate = new Date(year, monthIdx, day);
-          const isValidDay = cellDate.getMonth() === monthIdx && cellDate.getDate() === day;
-          timeSlots.forEach(slot => {
-            if (!isValidDay) {
-              row.push("-");
-            } else {
-              const dateStr = format(cellDate, 'yyyy-MM-dd');
-              const entry = data.find(d => d.date === dateStr && d.time_slot === slot);
-              if (entry) {
-                row.push(sliceResult(entry.result, chartType));
-              } else {
-                const cd = new Date(cellDate);
-                cd.setHours(0,0,0,0);
-                row.push(cd >= today ? "" : placeholder);
-              }
-            }
-          });
-        });
-        return row;
-      }).filter(row => row.slice(1).some(cell => {
-        const val = typeof cell === 'object' ? cell.content : cell;
-        return val !== "" && val !== "-";
-      }));
+      // Restore original styles
+      if (originalContainerStyle) {
+        container.setAttribute('style', originalContainerStyle);
+      } else {
+        container.removeAttribute('style');
+      }
 
-      // Top Banner
-      pdf.setFillColor(30, 64, 175);
-      pdf.rect(10, 10, pageWidth - 20, 25, "F");
-      pdf.setFontSize(13);
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont("helvetica", "bold");
-      pdf.text(`DEAR             COMBINATION             CHART             ${chartType === "5D" ? "5DIGIT" : chartType}`, pageWidth / 2, 27, { align: "center" });
+      if (tableContainer) {
+        if (originalTableStyle) {
+          tableContainer.setAttribute('style', originalTableStyle);
+        } else {
+          tableContainer.removeAttribute('style');
+        }
+      }
 
-      const dynamicFontSize = monthsToDisplay.length <= 3 ? 10 : 8;
-      const dynamicPadding = monthsToDisplay.length <= 3 
-        ? { top: 2, right: 3, bottom: 2, left: 3 } 
-        : { top: 1, right: 2, bottom: 1, left: 2 };
-
-      autoTable(pdf, {
-        startY: 40,
-        head: [headRow1, headRow2],
-        body: bodyRows,
-        theme: "grid",
-        styles: { 
-          fontSize: dynamicFontSize, 
-          cellPadding: dynamicPadding, 
-          halign: "center", 
-          overflow: "hidden", 
-          fontStyle: "bold",
-          lineWidth: 0.5,
-          lineColor: [200, 200, 200]
-        },
-        columnStyles: { 
-          0: { fontStyle: "bold", cellWidth: 25 } 
-        },
-        margin: { top: 40, left: 10, right: 10, bottom: 40 },
-        tableWidth: 'auto',
+      stickyElements.forEach((el, i) => {
+        if (originalStickyStyles[i]) {
+          (el as HTMLElement).setAttribute('style', originalStickyStyles[i]);
+        } else {
+          (el as HTMLElement).removeAttribute('style');
+        }
       });
 
-      // Footer
-      const finalY = (pdf as any).lastAutoTable.finalY + 10;
-      const footerY = Math.max(finalY, pageHeight - 35);
-      
-      pdf.setFillColor(30, 64, 175);
-      pdf.rect(10, footerY, pageWidth - 20, 25, "F");
-      pdf.setFontSize(11);
-      pdf.setTextColor(255, 255, 255);
-      pdf.text(`${chartLabel}`, 30, footerY + 17);
-      pdf.text(`Telegram: guessinggrp`, pageWidth - 30, footerY + 17, { align: "right" });
-
-      const pdfBlob = pdf.output("blob");
-      const fileName = `Dear_${chartLabel}_${year}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: "application/pdf" });
+      const imageUrl = canvas.toDataURL("image/png");
+      const blob = await (await fetch(imageUrl)).blob();
+      const fileName = `Dear_Chart_${chartType}_${year}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
 
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `Dear ${chartLabel} Chart ${year}`,
-          text: `Dear ${chartLabel} Chart results for ${year}`,
+          title: `Dear ${chartType} Chart ${year}`,
+          text: `Dear ${chartType} Chart results for ${year}`,
         });
         toast.success("Shared successfully!");
       } else {
-        const url = URL.createObjectURL(pdfBlob);
         const link = document.createElement("a");
-        link.href = url;
+        link.href = imageUrl;
         link.download = fileName;
         link.click();
-        toast.success("PDF downloaded!");
+        toast.success("Image downloaded!");
       }
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate PDF.");
+      console.error("Error generating image:", error);
+      toast.error("Failed to generate image.");
     } finally {
       setSharing(false);
     }
+  };
+
+  const handleShare = async () => {
+    // Keeping PDF option but user preference is image
+    handleShareImage();
   };
 
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -328,7 +267,7 @@ const DearChart = () => {
                   ) : (
                     <>
                       <Share2 className="mr-2 h-4 w-4" />
-                      <span className="hidden sm:inline">Share PDF</span>
+                      <span className="hidden sm:inline">Share Image</span>
                       <span className="sm:hidden">Share</span>
                     </>
                   )}
@@ -374,78 +313,103 @@ const DearChart = () => {
           </div>
         </div>
 
-        <div id="dear-table-container" className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xl overflow-y-auto max-h-[75vh] relative custom-scrollbar" ref={tableRef}>
-          <table className="min-w-max w-full border-collapse text-[8px] sm:text-xs">
-            <thead className="bg-[#1e40af] text-white sticky top-0 z-30 shadow-sm font-bold">
-              <tr>
-                <th className="border border-white/20 p-1.5 sm:p-2 sticky left-0 bg-[#1e40af] z-40 min-w-[25px] sm:min-w-[40px]" rowSpan={2}>D</th>
-                {currentMonths.map(monthIdx => (
-                  <th 
-                    key={monthIdx} 
-                    className="border border-white/20 p-1 sm:p-2 uppercase" 
-                    colSpan={timeFilter === "All" ? 3 : 1}
-                  >
-                    {format(new Date(year, monthIdx, 1), 'MMM')}
-                  </th>
-                ))}
-              </tr>
-              <tr className="bg-[#1d4ed8]">
-                {currentMonths.map(monthIdx => (
-                  <React.Fragment key={monthIdx}>
-                    {(timeFilter === "All" || timeFilter === "1PM") && (
-                      <th className="border border-white/20 p-1 min-w-[35px] sm:min-w-[55px]">1P</th>
-                    )}
-                    {(timeFilter === "All" || timeFilter === "6PM") && (
-                      <th className="border border-white/20 p-1 min-w-[35px] sm:min-w-[55px]">6P</th>
-                    )}
-                    {(timeFilter === "All" || timeFilter === "8PM") && (
-                      <th className="border border-white/20 p-1 min-w-[35px] sm:min-w-[55px]">8P</th>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {days.map(day => (
-                <tr key={day} className="hover:bg-indigo-50/30 transition-colors group">
-                  <td className="border border-slate-200 p-1 text-center font-black bg-slate-50 sticky left-0 z-20 shadow-[1px_0_3px_rgba(0,0,0,0.1)] group-hover:bg-indigo-50 transition-colors">
-                    {day}
-                  </td>
-                  {currentMonths.map(monthIdx => {
-                    // Optimized check for valid day of month
-                    const date = new Date(year, monthIdx, day);
-                    const isValidDay = date.getFullYear() === year && date.getMonth() === monthIdx && date.getDate() === day;
-                    
+        <div ref={captureRef} className="bg-white p-2">
+          {/* Chart Header - Matching Screenshot */}
+          <div className="bg-[#002060] text-white py-2 px-6 mb-1 flex justify-between items-center font-black text-sm sm:text-xl tracking-[0.2em] uppercase">
+            <span>DEAR</span>
+            <span>COMBINATION</span>
+            <span>CHART</span>
+            <span>{chartType === "5D" ? "5DIGIT" : chartType}</span>
+          </div>
+
+          <div id="dear-table-container" className="overflow-x-auto border-[1.5px] border-black bg-white overflow-y-auto max-h-[75vh] relative custom-scrollbar" ref={tableRef}>
+            <table className="min-w-max w-full border-collapse text-[8px] sm:text-xs">
+              <thead className="bg-[#002060] text-white sticky top-0 z-30 font-black">
+                <tr>
+                  <th className="border-[1px] border-black p-1.5 sm:p-2 sticky left-0 bg-[#fdf001] text-black z-40 min-w-[25px] sm:min-w-[40px] align-middle" rowSpan={2}>D</th>
+                  {currentMonths.map((monthIdx, i) => {
+                    const isEven = i % 2 === 0;
+                    const bgColor = isEven ? '#fdf001' : '#b4c7e7';
                     return (
-                      <React.Fragment key={`${monthIdx}-${day}`}>
-                        {(timeFilter === "All" || timeFilter === "1PM") && (
-                          <td className={`border border-slate-200 p-0.5 sm:p-1 text-center font-mono min-w-[35px] sm:min-w-[55px] ${!isValidDay ? 'bg-slate-100/50' : ''}`}>
-                            <span className="scale-95 sm:scale-100 inline-block font-bold">
-                              {isValidDay ? getResult(day, monthIdx, "1PM") : "-"}
-                            </span>
-                          </td>
-                        )}
-                        {(timeFilter === "All" || timeFilter === "6PM") && (
-                          <td className={`border border-slate-200 p-0.5 sm:p-1 text-center font-mono min-w-[35px] sm:min-w-[55px] ${!isValidDay ? 'bg-slate-100/50' : ''}`}>
-                            <span className="scale-95 sm:scale-100 inline-block font-bold">
-                              {isValidDay ? getResult(day, monthIdx, "6PM") : "-"}
-                            </span>
-                          </td>
-                        )}
-                        {(timeFilter === "All" || timeFilter === "8PM") && (
-                          <td className={`border border-slate-200 p-0.5 sm:p-1 text-center font-mono min-w-[35px] sm:min-w-[55px] ${!isValidDay ? 'bg-slate-100/50' : ''}`}>
-                            <span className="scale-95 sm:scale-100 inline-block font-bold">
-                              {isValidDay ? getResult(day, monthIdx, "8PM") : "-"}
-                            </span>
-                          </td>
-                        )}
-                      </React.Fragment>
+                      <th 
+                        key={monthIdx} 
+                        className="border-[1px] border-black p-1 sm:p-2 uppercase text-black align-middle" 
+                        style={{ backgroundColor: bgColor }}
+                        colSpan={timeFilter === "All" ? 3 : 1}
+                      >
+                        {format(new Date(year, monthIdx, 1), 'MMMM')}
+                      </th>
                     );
                   })}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+                <tr className="bg-[#002060]">
+                  {currentMonths.map(monthIdx => (
+                    <React.Fragment key={monthIdx}>
+                    {(timeFilter === "All" || timeFilter === "1PM") && (
+                      <th className="border-[1px] border-black p-1 min-w-[35px] sm:min-w-[55px] text-white align-middle font-black leading-none uppercase">1PM</th>
+                    )}
+                    {(timeFilter === "All" || timeFilter === "6PM") && (
+                      <th className="border-[1px] border-black p-1 min-w-[35px] sm:min-w-[55px] text-white align-middle font-black leading-none uppercase">6PM</th>
+                    )}
+                    {(timeFilter === "All" || timeFilter === "8PM") && (
+                      <th className="border-[1px] border-black p-1 min-w-[35px] sm:min-w-[55px] text-white align-middle font-black leading-none uppercase">8PM</th>
+                    )}
+                    </React.Fragment>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {days.map(day => (
+                  <tr key={day} className="group">
+                    <td className="border-[1px] border-black py-1 sm:py-2 text-center align-middle font-black bg-[#fdf001] text-black sticky left-0 z-20 leading-none">
+                      {day}
+                    </td>
+                    {currentMonths.map((monthIdx, i) => {
+                      const isEven = i % 2 === 0;
+                      const cellBgColor = isEven ? '#ffffff' : '#d9e2f3';
+                      const date = new Date(year, monthIdx, day);
+                      const isValidDay = date.getFullYear() === year && date.getMonth() === monthIdx && date.getDate() === day;
+                      
+                      return (
+                        <React.Fragment key={`${monthIdx}-${day}`}>
+                          {(timeFilter === "All" || timeFilter === "1PM") && (
+                            <td 
+                              className="border-[1px] border-black py-1 sm:py-2 text-center align-middle font-black min-w-[35px] sm:min-w-[55px] text-black leading-none"
+                              style={{ backgroundColor: cellBgColor }}
+                            >
+                              {isValidDay ? getResult(day, monthIdx, "1PM") : "-"}
+                            </td>
+                          )}
+                          {(timeFilter === "All" || timeFilter === "6PM") && (
+                            <td 
+                              className="border-[1px] border-black py-1 sm:py-2 text-center align-middle font-black min-w-[35px] sm:min-w-[55px] text-black leading-none"
+                              style={{ backgroundColor: cellBgColor }}
+                            >
+                              {isValidDay ? getResult(day, monthIdx, "6PM") : "-"}
+                            </td>
+                          )}
+                          {(timeFilter === "All" || timeFilter === "8PM") && (
+                            <td 
+                              className="border-[1px] border-black py-1 sm:py-2 text-center align-middle font-black min-w-[35px] sm:min-w-[55px] text-black leading-none"
+                              style={{ backgroundColor: cellBgColor }}
+                            >
+                              {isValidDay ? getResult(day, monthIdx, "8PM") : "-"}
+                            </td>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Chart Footer - Matching Screenshot */}
+          <div className="bg-[#002060] text-white py-2 px-6 mt-1 flex justify-between items-center font-black text-[10px] sm:text-xs tracking-wide">
+            <span>COMBINATION {chartType === "5D" ? "5DIGIT" : chartType}</span>
+            <span>Telegram: guessinggrp</span>
+          </div>
         </div>
       </div>
     </main>
