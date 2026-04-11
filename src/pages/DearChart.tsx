@@ -113,6 +113,7 @@ const DearChart = () => {
         (el as HTMLElement).style.zIndex = 'auto';
       });
 
+      container.style.width = '1200px';
       container.style.height = 'auto';
       container.style.maxHeight = 'none';
       if (tableContainer) {
@@ -125,7 +126,7 @@ const DearChart = () => {
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
-        windowWidth: container.scrollWidth,
+        windowWidth: 1200,
         windowHeight: container.scrollHeight
       });
 

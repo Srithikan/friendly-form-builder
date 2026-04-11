@@ -106,6 +106,7 @@ const KeralaChart = () => {
         (el as HTMLElement).style.zIndex = 'auto';
       });
 
+      container.style.width = '1400px';
       container.style.height = 'auto';
       container.style.maxHeight = 'none';
       if (tableContainer) {
@@ -118,7 +119,7 @@ const KeralaChart = () => {
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
-        windowWidth: container.scrollWidth,
+        windowWidth: 1400,
         windowHeight: container.scrollHeight
       });
 
